@@ -33,7 +33,7 @@ as the migration key.
 | Subscription expiry downgrade | Unchanged | High Priest → Initiate on lapse. |
 
 New systems with no prototype equivalent (Sections 6–9): **Sanity/Power meter**,
-**Nyarlathotep bargains**, **the Indifference** (random strikes), **patron factions**,
+**Nyarlathotep bargains**, **the Roil** (random strikes), **patron factions**,
 **the Awakening** endgame.
 
 ---
@@ -42,7 +42,7 @@ New systems with no prototype equivalent (Sections 6–9): **Sanity/Power meter*
 
 - **Backend:** Go 1.24, Chi router, SQLite (WAL), WebSocket hub. Versioned,
   transactional migrations. Background workers (snapshots, subscription expiry, and new:
-  the Indifference tick + Awakening check).
+  the Roil tick + Awakening check).
 - **Frontend:** React 19 + TypeScript, Vite, Three.js globe via `react-globe.gl`.
   Single WebSocket serving spectators and players alike; optimistic updates reconciled
   by the server.
@@ -60,7 +60,7 @@ New systems with no prototype equivalent (Sections 6–9): **Sanity/Power meter*
    patron boon on your own.
 3. **Spread** to neighbouring cells; convert the uncommitted; court **Nyarlathotep's
    bargains** for power.
-4. **Endure the Indifference** (random cosmic strikes) and manage your **Sanity**, while
+4. **Endure the Roil** (random cosmic strikes) and manage your **Sanity**, while
    edging toward **the Awakening**.
 
 The moment-to-moment is chant-heavy and low-friction; the strategic beats are sigils,
@@ -120,7 +120,9 @@ rock-paper-scissors texture. Store `patron_id` on the user/cell.
 | **Shub-Niggurath** | Proliferation; the Black Goat | Raw multiplication / swarm spawn | Highest upkeep |
 
 Two **framing forces** (not playable, drive systems):
-- **Azathoth** — the blind idiot god → source of the **Indifference** (random strikes).
+- **Azathoth** — the blind idiot god → source of **the Roil** (random strikes). *(Named
+  "the Indifference" in early drafts; shipped as **the Roil** — Azathoth's blind, bubbling
+  churn.)*
 - **Nyarlathotep** — the Crawling Chaos → the **Tempter** (bargains).
 
 ---
@@ -177,9 +179,10 @@ passes thresholds. Keep the existing threshold ladder, reskinned to Whisper → 
 - **Spread (social/PvP):** cells multiply city→city; compete by **converting** the
   uncommitted and undermining rivals — leaderboards for **Reach**, **Devotion**, **Lore
   uncovered**. Hastur faction can flip enemy cultists. (Geography moat preserved.)
-- **The Indifference:** a background worker fires random cataclysms across the map on a
-  cosmic tick; ritual/wards lower per-cell odds but never to zero. Broadcast
-  `indifference_strike`. Telegraph so it reads as fate, not unfairness.
+- **The Roil:** a background worker fires random cataclysms across the map on a
+  cosmic tick; ritual/wards lower per-cell odds *and* blunt damage, but never to zero, and
+  wards erode unless tended. Broadcast `roil_strike`. Telegraph so it reads as fate, not
+  unfairness.
 - **The Awakening (endgame / seasons):** when an alignment condition is met, the first
   cult to complete the **Great Rite** wakes its patron → **server-wide event** → world
   reseeds, new cycle. This is the season loop and the reason to push past safe play.
@@ -196,7 +199,7 @@ Reskin existing event names; add new ones.
 - `rite_strike` (broadcast): a rite landed on a cell.
 - `rite_incoming` (broadcast to target): telegraph.
 - `bargain_offer` (server→client): Nyarlathotep proposes a pact.
-- `indifference_strike` (broadcast): random cosmic cataclysm.
+- `roil_strike` (broadcast): random cosmic cataclysm (the Roil); carries a `warded` flag.
 - `sanity_update` (server→client): meter changes + any hallucination flags.
 - `awakening_progress` / `awakening_triggered` (broadcast): endgame.
 
@@ -263,7 +266,7 @@ exactly as the prototype derives achievements. Adapt thresholds; no new tables.
 3. **Patrons:** add `patron_id`, selection flow, asymmetric boons.
 4. **Sanity/Power + Bargains:** add meter, Nyarlathotep `bargain_offer` loop,
    low-sanity risk effects + hallucinations. **Prototype balance here first.**
-5. **The Indifference:** cosmic-tick worker + `indifference_strike` + per-cell wards.
+5. **The Roil:** cosmic-tick worker + `roil_strike` + per-cell wards. ✅ *(done in UI-first build)*
 6. **Spread/conversion + Awakening:** conversion mechanics, Reach/Lore leaderboards,
    Great Rite endgame + season reseed.
 7. **PWA + Stripe:** installable shell, web push, subscription billing & downgrade.

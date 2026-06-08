@@ -44,6 +44,10 @@ export interface GameClient {
   /** A rite of lucidity — claw sanity back toward Lucid. */
   riteOfLucidity(): void
 
+  // --- the Roil & wards (spec §9) ---
+  /** A rite of warding — raise the home cell's ward against the Roil. Emits cell_update. */
+  ward(): void
+
   // --- bargains: Nyarlathotep, the Tempter (spec §6, §7) ---
   /** The standing offer, if one is open (for restoring across reloads). */
   currentBargain(): Promise<Bargain | null>

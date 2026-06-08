@@ -19,8 +19,10 @@ mock later behind the same `GameClient` seam (`web/src/client/`).
 What's in it:
 - **Reskin** of the prototype: devotion, chant, rite, cell, patrons, tiers (Witness / Initiate /
   High Priest), the Pact.
-- **Living world** — ~170 real cities seeded as cult cells; bots chant, rites streak, the
-  Indifference strikes. State persists in `localStorage`.
+- **Living world** — ~170 real cities seeded as cult cells; bots chant, rites streak, and
+  **the Roil** (Azathoth's blind churn) falls at random. Cells raise **wards** that lower
+  their odds of being struck and blunt the blow — but never to zero, and wards erode unless
+  tended. State persists in `localStorage`.
 - **Sigil input** — rites are invoked by *tracing a sigil* (a `$P` point-cloud recogniser);
   tier sets stroke complexity. A faltered sigil costs nothing.
 - **Sanity / Power** — a delve/recover gamble: accept power to lose sanity and unlock stronger

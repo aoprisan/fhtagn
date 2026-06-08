@@ -111,10 +111,32 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPane
           <Row label="The claimed" value={cell.claimed.toLocaleString()} color="var(--crimson)" />
         )}
 
+        {(cell.wardLevel > 0 || isHome) && (
+          <Row label="Wards" value={`${Math.round(cell.wardLevel)}%`} color="var(--violet)" />
+        )}
+
         {userDevotion !== undefined && (
           <Row label="Your devotion" value={userDevotion.toLocaleString()} color="var(--gold)" />
         )}
       </div>
+
+      {isHome && (
+        <button
+          onClick={() => game.ward()}
+          title="Raise the wards against the Roil — they erode over time and must be tended"
+          style={{
+            marginTop: 12, width: '100%', background: 'rgba(124, 107, 176, 0.08)',
+            border: '1px solid var(--violet)', borderRadius: 8, padding: '8px 6px',
+            color: 'var(--violet)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+          }}
+        >
+          Tend the Wards
+          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
+            shelter from the Roil
+          </span>
+        </button>
+      )}
 
       {contributors.length > 0 && (
         <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>

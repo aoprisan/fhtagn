@@ -11,6 +11,17 @@ import { haversineKm } from '../game/geo'
 const SAVE_KEY = 'fhtagn.save.v1'
 const TICK_MS = 1600
 
+// Wards vs the Roil (spec §9: "ritual/wards lower per-cell odds but never to zero").
+const WARD_MAX = 80          // a fully-tended ward caps mitigation at 80% — never total
+const WARD_STEP = 18         // each rite of warding raises the home ward this much
+const WARD_DECAY = 1.2       // wards erode each tick; they must be tended, not set-and-forget
+const WARD_ABSORB = 22       // a strike that lands spends part of the ward blunting it
+
+/** Mitigation in [0, WARD_MAX/100] a ward of the given level grants. */
+function wardMitigation(wardLevel: number): number {
+  return Math.min(WARD_MAX, Math.max(0, wardLevel)) / 100
+}
+
 /** A catch accepted and waiting to spring (or pass) over its window. */
 interface PendingCatch {
   bargainId: string
@@ -58,6 +69,8 @@ function seedCells(): Cell[] {
       contributorCount: 1 + (h % 240),
       riteStockpile: (h % 7 === 0) ? 1 + (h % 3) : 0,
       patronId: patronIds[(h + i) % patronIds.length] as PatronId,
+      // A scattering of cells start partly warded, so the world shows the practice.
+      wardLevel: (h % 5 === 0) ? 20 + (h % 30) : 0,
     }
   })
 }
@@ -76,7 +89,7 @@ export class MockGameClient implements GameClient {
 
   constructor() {
     const loaded = this.load()
-    this.cells = loaded?.cells ?? seedCells()
+    this.cells = (loaded?.cells ?? seedCells()).map(c => ({ ...c, wardLevel: c.wardLevel ?? 0 }))
     this.cultist = loaded?.cultist ?? null
     this.rites = loaded?.rites ?? []
     this.pactRec = loaded?.pact ?? null
@@ -133,15 +146,24 @@ export class MockGameClient implements GameClient {
       this.emit({ type: 'cell_update', data: cellUpdate(c) })
     }
 
-    // The Indifference: rare cosmic strike on a random cell (spec §9, telegraphed
-    // so it reads as fate). Real strike worker comes later; this is the toy.
+    // Wards erode every tick — left untended, a cell drifts back to bare (spec §9).
+    for (const c of this.cells) {
+      if (c.wardLevel > 0) c.wardLevel = Math.max(0, c.wardLevel - WARD_DECAY)
+    }
+
+    // The Roil: Azathoth's blind, bubbling churn falls on a cell (spec §9, telegraphed
+    // so it reads as fate). Wards lower a cell's odds of being chosen and blunt the
+    // blow if it lands — but never to zero. Real strike worker comes later; this is the toy.
     if (Math.random() < 0.18) {
-      const c = this.cells[Math.floor(Math.random() * this.cells.length)]
+      const c = this.pickRoilTarget()
       if (c) {
-        const damage = randInt(2_000, 18_000)
+        const mitigation = wardMitigation(c.wardLevel)
+        const damage = Math.round(randInt(2_000, 18_000) * (1 - mitigation))
+        const warded = c.wardLevel > 0
         c.devotion = Math.max(0, c.devotion - damage)
         c.claimed += damage
-        this.emit({ type: 'indifference_strike', data: { targetCellId: c.id, damage, toLat: c.lat, toLng: c.lng } })
+        if (warded) c.wardLevel = Math.max(0, c.wardLevel - WARD_ABSORB)  // the ward spends itself
+        this.emit({ type: 'roil_strike', data: { targetCellId: c.id, damage, toLat: c.lat, toLng: c.lng, warded } })
         this.emit({ type: 'cell_update', data: cellUpdate(c) })
       }
     }
@@ -436,6 +458,37 @@ export class MockGameClient implements GameClient {
     this.adjustSanity(12)
   }
 
+  // ---------- the Roil & wards (spec §9) ----------
+  // Weighted pick: a well-warded cell is far less likely to be chosen, but its
+  // weight is floored above zero — the Roil never spares anyone entirely.
+  private pickRoilTarget(): Cell | undefined {
+    let total = 0
+    const weights = this.cells.map(c => {
+      const w = Math.max(0.2, 1 - wardMitigation(c.wardLevel))
+      total += w
+      return w
+    })
+    let r = Math.random() * total
+    for (let i = 0; i < this.cells.length; i++) {
+      r -= weights[i]
+      if (r <= 0) return this.cells[i]
+    }
+    return this.cells[this.cells.length - 1]
+  }
+
+  ward(): void {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return
+    const home = this.cell(cu.cellId)
+    if (!home) return
+    home.wardLevel = Math.min(WARD_MAX, home.wardLevel + WARD_STEP)
+    // Tending the wards is lucid, deliberate work — a small balm to the mind.
+    cu.sanity = Math.min(100, cu.sanity + 1.5)
+    this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
+    this.save()
+  }
+
   // ---------- GameClient: bargains ----------
   async currentBargain(): Promise<Bargain | null> {
     return this.bargain ? { ...this.bargain } : null
@@ -545,7 +598,10 @@ export class MockGameClient implements GameClient {
 
 // ---- helpers ----
 function cellUpdate(c: Cell) {
-  return { cellId: c.id, devotion: c.devotion, contributorCount: c.contributorCount, peakDevotion: c.peakDevotion }
+  return {
+    cellId: c.id, devotion: c.devotion, contributorCount: c.contributorCount,
+    peakDevotion: c.peakDevotion, wardLevel: c.wardLevel,
+  }
 }
 
 function mockContributors(c: Cell): Contributor[] {

@@ -19,7 +19,7 @@ import { game } from './client'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
 import type {
-  Cell, Cultist, CellUpdate, RiteStrike, IndifferenceStrike,
+  Cell, Cultist, CellUpdate, RiteStrike, RoilStrike,
   RevelationEarned, WorldStats, Rite, Bargain, BargainSprung,
 } from './types'
 
@@ -91,18 +91,15 @@ export default function App() {
   const reconcileRef = useRef<(serverTotal: number) => void>(() => {})
 
   const onCellUpdate = useCallback((update: CellUpdate) => {
-    setCells(prev =>
-      prev.map(c =>
-        c.id === update.cellId
-          ? { ...c, devotion: update.devotion, contributorCount: update.contributorCount, peakDevotion: update.peakDevotion }
-          : c
-      )
-    )
-    setSelectedCell(prev =>
-      prev && prev.id === update.cellId
-        ? { ...prev, devotion: update.devotion, contributorCount: update.contributorCount, peakDevotion: update.peakDevotion }
-        : prev
-    )
+    const merge = (c: Cell): Cell => ({
+      ...c,
+      devotion: update.devotion,
+      contributorCount: update.contributorCount,
+      peakDevotion: update.peakDevotion,
+      wardLevel: update.wardLevel ?? c.wardLevel,
+    })
+    setCells(prev => prev.map(c => (c.id === update.cellId ? merge(c) : c)))
+    setSelectedCell(prev => (prev && prev.id === update.cellId ? merge(prev) : prev))
     if (cultist && update.cellId === cultist.cellId) {
       reconcileRef.current(update.devotion)
     }
@@ -132,9 +129,13 @@ export default function App() {
     }
   }, [cultist, addToast])
 
-  const onIndifference = useCallback((s: IndifferenceStrike) => {
+  const onRoil = useCallback((s: RoilStrike) => {
     const target = cellsRef.current.find(c => c.id === s.targetCellId)
-    addToast(`The Indifference falls on ${target?.name ?? 'somewhere'} — ${s.damage.toLocaleString()} lost`, 'indifference')
+    const where = target?.name ?? 'somewhere'
+    const msg = s.warded
+      ? `The Roil breaks over ${where} — the wards hold, ${s.damage.toLocaleString()} still lost`
+      : `The Roil falls on ${where} — ${s.damage.toLocaleString()} lost`
+    addToast(msg, 'roil')
     setPulsingCellId(s.targetCellId)
     setTimeout(() => setPulsingCellId(null), 1500)
   }, [addToast])
@@ -168,7 +169,7 @@ export default function App() {
   }, [addToast])
 
   const { connectionState } = useGameClient({
-    onCellUpdate, onRiteStrike, onRiteIncoming, onIndifference, onRevelation, onSanity,
+    onCellUpdate, onRiteStrike, onRiteIncoming, onRoil, onRevelation, onSanity,
     onBargainOffer, onBargainSprung,
   })
 

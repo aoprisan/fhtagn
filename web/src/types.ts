@@ -22,10 +22,11 @@ export interface Cell {
   lng: number
   devotion: number          // was totalClicks
   peakDevotion: number      // was highestEverPopulation
-  claimed: number           // devotion lost to rites/indifference (was totalDead)
+  claimed: number           // devotion lost to rites/the Roil (was totalDead)
   contributorCount: number
   riteStockpile: number     // was missileStockpile
   patronId: PatronId | null
+  wardLevel: number         // [0,100] ritual warding vs the Roil; decays, must be tended
 }
 
 export interface CellDetail extends Cell {
@@ -162,6 +163,7 @@ export interface CellUpdate {
   devotion: number
   contributorCount: number
   peakDevotion: number
+  wardLevel?: number
 }
 
 export interface CellChant {
@@ -181,11 +183,13 @@ export interface RiteStrike {
   toLng: number
 }
 
-export interface IndifferenceStrike {
+/** A strike of the Roil — Azathoth's blind, bubbling churn falling on a cell (spec §9). */
+export interface RoilStrike {
   targetCellId: string
   damage: number
   toLat: number
   toLng: number
+  warded: boolean           // the cell's wards blunted the blow
 }
 
 export interface RevelationEarned {
@@ -203,7 +207,7 @@ export type GameEvent =
   | { type: 'cell_chant'; data: CellChant }
   | { type: 'rite_strike'; data: RiteStrike }
   | { type: 'rite_incoming'; data: RiteStrike }
-  | { type: 'indifference_strike'; data: IndifferenceStrike }
+  | { type: 'roil_strike'; data: RoilStrike }
   | { type: 'revelation_earned'; data: RevelationEarned }
   | { type: 'sanity_update'; data: SanityUpdate }
   | { type: 'bargain_offer'; data: { bargain: Bargain } }

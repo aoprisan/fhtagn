@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { game, ConnectionState } from '../client'
 import type {
-  CellUpdate, CellChant, RiteStrike, IndifferenceStrike, RevelationEarned, SanityUpdate,
+  CellUpdate, CellChant, RiteStrike, RoilStrike, RevelationEarned, SanityUpdate,
   Bargain, BargainSprung,
 } from '../types'
 
@@ -12,7 +12,7 @@ export interface GameClientHandlers {
   onCellChant?: (c: CellChant) => void
   onRiteStrike?: (s: RiteStrike) => void
   onRiteIncoming?: (s: RiteStrike) => void
-  onIndifference?: (s: IndifferenceStrike) => void
+  onRoil?: (s: RoilStrike) => void
   onRevelation?: (r: RevelationEarned) => void
   onSanity?: (s: SanityUpdate) => void
   onBargainOffer?: (b: Bargain) => void
@@ -37,7 +37,7 @@ export function useGameClient(handlers: GameClientHandlers) {
         case 'cell_chant': h.onCellChant?.(e.data); break
         case 'rite_strike': h.onRiteStrike?.(e.data); break
         case 'rite_incoming': h.onRiteIncoming?.(e.data); break
-        case 'indifference_strike': h.onIndifference?.(e.data); break
+        case 'roil_strike': h.onRoil?.(e.data); break
         case 'revelation_earned': h.onRevelation?.(e.data); break
         case 'sanity_update': h.onSanity?.(e.data); break
         case 'bargain_offer': h.onBargainOffer?.(e.data.bargain); break
