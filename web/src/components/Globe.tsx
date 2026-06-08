@@ -47,7 +47,8 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
       .catch(() => {})
   }, [])
 
-  // Auto-rotate (paused while aiming a rite, so targets hold still)
+  // Auto-rotate (paused while aiming a rite, so targets hold still) and
+  // constrain how far the seeker may draw in / pull back from the void.
   useEffect(() => {
     if (!globeRef.current) return
     const controls = globeRef.current.controls()
@@ -55,8 +56,21 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
       controls.autoRotate = !paused
       controls.autoRotateSpeed = 0.35
       controls.enableDamping = false
+      controls.enableZoom = true
+      controls.zoomSpeed = 0.8
+      controls.minDistance = 140   // closest the eye may press to the sphere
+      controls.maxDistance = 520   // farthest it may recede
     }
   }, [paused])
+
+  // Zoom by nudging the camera altitude toward/away from the surface. Reads the
+  // live point-of-view so taps compound, and animates so it feels like drifting.
+  const zoom = useCallback((factor: number) => {
+    if (!globeRef.current) return
+    const pov = globeRef.current.pointOfView()
+    const altitude = Math.max(0.35, Math.min(3.6, pov.altitude * factor))
+    globeRef.current.pointOfView({ ...pov, altitude }, 400)
+  }, [])
 
   // Abyssal void globe: a dark sphere with a slow teal pulse, no Earth texture.
   useEffect(() => {
@@ -175,6 +189,7 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
   }, [pulsingCellId])
 
   return (
+    <>
     <GlobeGL
       ref={globeRef}
       // No Earth/space textures — the void is the aesthetic and keeps us CDN-free.
@@ -206,5 +221,56 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
       width={dimensions.width}
       height={dimensions.height}
     />
+
+    {/* Zoom controls — left side, clear of the chant orb (bottom-right) and the
+        dock. Sized for a thumb. */}
+    <div className="globe-zoom">
+      <button aria-label="Draw closer" onClick={() => zoom(0.72)}>+</button>
+      <button aria-label="Pull back" onClick={() => zoom(1.38)}>−</button>
+    </div>
+
+    <style>{`
+      .globe-zoom {
+        position: absolute;
+        left: 18px;
+        bottom: 32px;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .globe-zoom button {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 1px solid rgba(70, 230, 205, 0.45);
+        background: radial-gradient(circle at 36% 32%, rgba(20,52,48,0.92), rgba(6,18,22,0.92));
+        color: #8ff3df;
+        font-family: var(--font-display);
+        font-size: 26px;
+        line-height: 1;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 0 18px rgba(43,191,168,0.3), inset 0 1px 6px rgba(255,255,255,0.12);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.1s ease, box-shadow 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .globe-zoom button:active {
+        transform: scale(0.9);
+        box-shadow: 0 0 26px rgba(43,191,168,0.55), inset 0 1px 6px rgba(255,255,255,0.12);
+      }
+      @media (max-width: 768px) {
+        .globe-zoom {
+          left: 16px;
+          bottom: calc(var(--dock-h) + var(--safe-b) + 14px);
+        }
+        .globe-zoom button { width: 54px; height: 54px; font-size: 30px; }
+      }
+    `}</style>
+    </>
   )
 }
