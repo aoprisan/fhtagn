@@ -130,11 +130,16 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
     }
   }, [])
 
-  // Fly to the player's cell on mount
+  // Fly to the player's cell — ONCE per cell. Cells tick constantly (devotion),
+  // so without this guard the flight would re-fire on every update and snap the
+  // camera back to altitude 1.5, undoing any zoom the seeker has set.
+  const flownToRef = useRef<string | null>(null)
   useEffect(() => {
     if (!globeRef.current || !userCellId) return
+    if (flownToRef.current === userCellId) return
     const cell = cells.find(c => c.id === userCellId)
     if (cell) {
+      flownToRef.current = userCellId
       setTimeout(() => {
         globeRef.current.pointOfView({ lat: cell.lat, lng: cell.lng, altitude: 1.5 }, 1500)
       }, 500)
