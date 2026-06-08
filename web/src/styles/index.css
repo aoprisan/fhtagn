@@ -264,7 +264,7 @@ button:active { filter: brightness(0.92); }
 
   /* Floating panels are taken over by the dock/sheet — hide the free-floating
      desktop instances; the sheet renders them instead. */
-  .targeting-overlay { bottom: calc(var(--dock-h) + 84px) !important; }
+  .targeting-overlay { bottom: calc(var(--dock-h) + var(--safe-b) + 168px) !important; }
 
   /* Dock: a rune strip pinned to the bottom edge */
   .dock {
@@ -367,11 +367,21 @@ button:active { filter: brightness(0.92); }
   }
   .sheet > *::before, .sheet > *::after { display: none !important; }
 
-  /* Chant button floats clear above the dock */
+  /* Chant orb: the ritual focus. Centered in its own band above the dock and
+     ordered BELOW the dock so every rune tab stays tappable (the orb sits
+     clear of them vertically). It is unmounted while a grimoire sheet is open
+     (see App) so it never floats over the drawer. */
   .click-button-area {
-    bottom: calc(var(--dock-h) + var(--safe-b) + 16px) !important;
-    right: 16px !important;
-    z-index: 65 !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    bottom: calc(var(--dock-h) + var(--safe-b) + 18px) !important;
+    z-index: 58 !important;
+  }
+  .chant-orb {
+    width: 104px !important;
+    height: 104px !important;
+    font-size: 19px !important;
   }
 
   /* Centered overlays keep clear of the dock */

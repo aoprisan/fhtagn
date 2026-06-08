@@ -347,14 +347,18 @@ export default function App() {
         </>
       )}
 
-      <ChantButton
-        onChant={tier === 'witness' ? handleWitnessJoin : handleChant}
-        personalChants={cultist ? personalChants : 0}
-        cellName={userCell?.name}
-        rateLimited={rateLimited}
-        tier={tier}
-        multiplier={multiplier}
-      />
+      {/* The orb steps aside while a grimoire sheet is open so it never
+          overlaps the drawer; the dock + sheet own the bottom band then. */}
+      {!(isMobile && activeSheet) && (
+        <ChantButton
+          onChant={tier === 'witness' ? handleWitnessJoin : handleChant}
+          personalChants={cultist ? personalChants : 0}
+          cellName={userCell?.name}
+          rateLimited={rateLimited}
+          tier={tier}
+          multiplier={multiplier}
+        />
+      )}
 
       <ConnectionStatus state={connectionState} />
 
