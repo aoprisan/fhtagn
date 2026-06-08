@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { game, ConnectionState } from '../client'
 import type {
   CellUpdate, CellChant, RiteStrike, IndifferenceStrike, RevelationEarned, SanityUpdate,
+  Bargain, BargainSprung,
 } from '../types'
 
 export type { ConnectionState }
@@ -14,6 +15,8 @@ export interface GameClientHandlers {
   onIndifference?: (s: IndifferenceStrike) => void
   onRevelation?: (r: RevelationEarned) => void
   onSanity?: (s: SanityUpdate) => void
+  onBargainOffer?: (b: Bargain) => void
+  onBargainSprung?: (s: BargainSprung) => void
 }
 
 /**
@@ -37,6 +40,8 @@ export function useGameClient(handlers: GameClientHandlers) {
         case 'indifference_strike': h.onIndifference?.(e.data); break
         case 'revelation_earned': h.onRevelation?.(e.data); break
         case 'sanity_update': h.onSanity?.(e.data); break
+        case 'bargain_offer': h.onBargainOffer?.(e.data.bargain); break
+        case 'bargain_sprung': h.onBargainSprung?.(e.data); break
       }
     })
     setConnectionState(game.connectionState())

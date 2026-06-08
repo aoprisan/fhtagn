@@ -1,6 +1,6 @@
 import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats,
-  LeaderboardKind, PatronId, GameEvent,
+  LeaderboardKind, PatronId, GameEvent, Bargain, BargainOutcome,
 } from '../types'
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected'
@@ -43,8 +43,16 @@ export interface GameClient {
   adjustSanity(delta: number, hallucination?: boolean): void
   /** A rite of lucidity — claw sanity back toward Lucid. */
   riteOfLucidity(): void
-  /** Accept an eldritch gift: lose sanity, gain a forbidden rite (the gamble). */
-  delve(): Promise<{ riteType: string; sanityCost: number }>
+
+  // --- bargains: Nyarlathotep, the Tempter (spec §6, §7) ---
+  /** The standing offer, if one is open (for restoring across reloads). */
+  currentBargain(): Promise<Bargain | null>
+  /** Call the Tempter deliberately — he always answers. Emits bargain_offer. */
+  courtTempter(): void
+  /** Seal the pact: take the grant + visible sanity cost; the hidden catch is now in play. */
+  acceptBargain(id: string): Promise<BargainOutcome>
+  /** Refuse the pact; the offer is withdrawn, no cost. */
+  declineBargain(id: string): void
 
   // --- realtime ---
   on(handler: (e: GameEvent) => void): () => void   // returns unsubscribe

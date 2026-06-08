@@ -13,13 +13,14 @@ import PactPanel from './components/PactPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import SigilCanvas from './components/SigilCanvas'
 import SanityMeter from './components/SanityMeter'
+import TempterCard from './components/TempterCard'
 import PwaPrompts from './components/PwaPrompts'
 import { game } from './client'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
 import type {
   Cell, Cultist, CellUpdate, RiteStrike, IndifferenceStrike,
-  RevelationEarned, WorldStats, Rite,
+  RevelationEarned, WorldStats, Rite, Bargain, BargainSprung,
 } from './types'
 
 const LEADERBOARD_REFRESH_MS = 3000
@@ -38,6 +39,7 @@ export default function App() {
   const [pendingCast, setPendingCast] = useState<{ rite: Rite; cell: Cell } | null>(null)
   const [sanity, setSanity] = useState(100)
   const [hallucinating, setHallucinating] = useState(false)
+  const [bargain, setBargain] = useState<Bargain | null>(null)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const hallucinateTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -56,11 +58,12 @@ export default function App() {
 
   // Load the world + any saved cultist
   useEffect(() => {
-    Promise.all([game.listCells(), game.me(), game.leaderboard('devotion', 10), game.stats()])
-      .then(([cellsData, cultistData, leaderboardData, statsData]) => {
+    Promise.all([game.listCells(), game.me(), game.leaderboard('devotion', 10), game.stats(), game.currentBargain()])
+      .then(([cellsData, cultistData, leaderboardData, statsData, standingBargain]) => {
         setCells(cellsData)
         setLeaderboard(leaderboardData)
         setWorldStats(statsData)
+        setBargain(standingBargain)
         if (cultistData) {
           setCultist(cultistData)
           setSanity(cultistData.sanity)
@@ -155,17 +158,41 @@ export default function App() {
 
   useEffect(() => () => clearTimeout(hallucinateTimer.current), [])
 
+  const onBargainOffer = useCallback((b: Bargain) => {
+    setBargain(b)
+    addToast('A bargain is offered. The Crawling Chaos awaits your answer.', 'bargain')
+  }, [addToast])
+
+  const onBargainSprung = useCallback((s: BargainSprung) => {
+    addToast(s.message, s.sprung ? 'rite_incoming' : 'bargain')
+  }, [addToast])
+
   const { connectionState } = useGameClient({
     onCellUpdate, onRiteStrike, onRiteIncoming, onIndifference, onRevelation, onSanity,
+    onBargainOffer, onBargainSprung,
   })
 
   const handleLucidity = useCallback(() => game.riteOfLucidity(), [])
-  const handleDelve = useCallback(async () => {
-    try {
-      const { riteType } = await game.delve()
-      addToast(`You take the gift — the ${riteType} is yours, and something of you is gone`, 'rite')
-    } catch { /* ignore */ }
+  const handleCourt = useCallback(() => {
+    addToast('You speak into the dark, and the dark leans closer…', 'bargain')
+    game.courtTempter()
   }, [addToast])
+
+  const handleAcceptBargain = useCallback(async (id: string) => {
+    setBargain(null)
+    try {
+      const { granted } = await game.acceptBargain(id)
+      addToast(`The pact is sealed — you take ${granted}. Something of you is now owed.`, 'bargain')
+      setRiteRefreshKey(k => k + 1)
+    } catch (e) {
+      addToast(`The bargain slips away: ${e instanceof Error ? e.message : 'unknown'}`, 'bargain')
+    }
+  }, [addToast])
+
+  const handleDeclineBargain = useCallback((id: string) => {
+    setBargain(null)
+    game.declineBargain(id)
+  }, [])
 
   const { handleChant, personalChants, rateLimited, multiplier, reconcile } = useChantHandler(
     cultist,
@@ -267,7 +294,7 @@ export default function App() {
   const ritePanelEl = <RitePanel tier={tier} onInvokeRite={handleInvokeRite} refreshKey={riteRefreshKey} />
   const pactPanelEl = <PactPanel tier={tier} onAscended={handleAscended} />
   const sanityPanelEl = cultist && (
-    <SanityMeter sanity={sanity} hallucinating={hallucinating} onLucidity={handleLucidity} onDelve={handleDelve} />
+    <SanityMeter sanity={sanity} hallucinating={hallucinating} onLucidity={handleLucidity} onCourt={handleCourt} />
   )
   const leaderboardEl = <Leaderboard cells={leaderboard} />
 
@@ -397,6 +424,14 @@ export default function App() {
             Cancel
           </button>
         </div>
+      )}
+
+      {bargain && cultist && (
+        <TempterCard
+          bargain={bargain}
+          onAccept={handleAcceptBargain}
+          onDecline={handleDeclineBargain}
+        />
       )}
     </>
   )

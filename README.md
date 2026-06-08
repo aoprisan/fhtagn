@@ -25,6 +25,10 @@ What's in it:
   tier sets stroke complexity. A faltered sigil costs nothing.
 - **Sanity / Power** — a delve/recover gamble: accept power to lose sanity and unlock stronger
   rites; low sanity brings hallucinated strikes. (Prototype balance — not yet tuned.)
+- **Bargains** — Nyarlathotep, the Tempter, offers pacts (more often as your mind frays). The
+  grant and the sanity cost are shown; the **catch is hidden** and springs probabilistically
+  later — a strike, a defection, a false calm. A genuine gamble, not a known trade. Call him
+  yourself with *Court the Tempter*, or wait to be courted.
 
 ## Develop
 

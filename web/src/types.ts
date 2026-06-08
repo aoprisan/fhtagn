@@ -84,6 +84,65 @@ export interface Pact {
   expiresAt: string
 }
 
+// ---- Bargains: Nyarlathotep, the Tempter (spec §4 "seal a bargain", §6, §7, §11) ----
+//
+// A bargain is a genuine gamble, not a timer to optimise (spec §7, the #1 thing
+// to get right): the power grant and the immediate sanity cost are *shown*; the
+// catch is *hidden*. The flavour hints at a price, but its chance and magnitude
+// are concealed, and it springs probabilistically over a later window — so you
+// cannot reduce accepting to a known trade. Delve deeper (lower sanity) and the
+// offers get stronger AND the catches get worse: the delve→gain→claw-back loop.
+
+export type BargainKind =
+  | 'gift'     // a forbidden rite, freely given
+  | 'clarity'  // sanity restored — the cruellest mask
+  | 'swarm'    // a surge of devotion to your cell
+  | 'tome'     // forbidden lore: the strongest rite, the deepest cost
+
+export type BargainCatchKind =
+  | 'attention'      // the patron's lethal attention — a strike on your home cell
+  | 'defection'      // cultists turn; devotion and contributors bleed away
+  | 'false-clarity'  // the offered calm collapses; sanity crashes below where it began
+
+/** The hidden price. Never shown numerically to the player — only the flavour hints it. */
+export interface BargainCatch {
+  kind: BargainCatchKind
+  chance: number            // P(springs at all) over the window — hidden from the UI
+  devotionLoss?: number
+  contributorLoss?: number
+  sanityCrash?: number
+}
+
+/** A pact proposed by Nyarlathotep. `bargain_offer` carries one of these. */
+export interface Bargain {
+  id: string
+  kind: BargainKind
+  title: string
+  flavor: string            // the temptation; obliquely hints the catch
+  // What you gain — visible. Exactly one of the grant fields is set.
+  grantLabel: string
+  grantRiteType?: string
+  grantDevotion?: number
+  grantSanity?: number
+  sanityCost: number        // visible, immediate
+  catch: BargainCatch       // hidden
+  window: number            // ticks over which the catch may spring once accepted
+  expiresInTicks: number    // ignored this long → withdrawn
+}
+
+/** Result of accepting — a human description of the immediate, visible effect. */
+export interface BargainOutcome {
+  granted: string
+  sanityCost: number
+}
+
+/** `bargain_sprung`: the catch resolving later (sprung) — or passing harmlessly. */
+export interface BargainSprung {
+  kind: BargainCatchKind | 'passed'
+  sprung: boolean
+  message: string
+}
+
 export type LeaderboardKind = 'devotion' | 'reach' | 'lore'
 
 export interface WorldStats {
@@ -147,5 +206,7 @@ export type GameEvent =
   | { type: 'indifference_strike'; data: IndifferenceStrike }
   | { type: 'revelation_earned'; data: RevelationEarned }
   | { type: 'sanity_update'; data: SanityUpdate }
+  | { type: 'bargain_offer'; data: { bargain: Bargain } }
+  | { type: 'bargain_sprung'; data: BargainSprung }
 
 export type GameEventType = GameEvent['type']

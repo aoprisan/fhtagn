@@ -1,20 +1,31 @@
 import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats, Contributor,
-  LeaderboardKind, PatronId, GameEvent, RiteFamily,
+  LeaderboardKind, PatronId, GameEvent, RiteFamily, Bargain, BargainCatch, BargainOutcome,
 } from '../types'
 import { GameClient, EventBus, ConnectionState, InvokeResult } from './GameClient'
 import { SEED_CELLS } from '../game/seedCells'
 import { PATRONS, RITE_BY_TYPE, RITE_THRESHOLDS, REVELATION_RITE_POOL } from '../game/catalog'
+import { rollBargain, perTickSpringChance } from '../game/bargains'
 import { haversineKm } from '../game/geo'
 
 const SAVE_KEY = 'fhtagn.save.v1'
 const TICK_MS = 1600
+
+/** A catch accepted and waiting to spring (or pass) over its window. */
+interface PendingCatch {
+  bargainId: string
+  catch: BargainCatch
+  window: number      // fixed; drives the per-tick spring probability
+  ticksLeft: number
+}
 
 interface SaveState {
   cells: Cell[]
   cultist: Cultist | null
   rites: Rite[]
   pact: Pact | null
+  bargain?: Bargain | null
+  pendingCatches?: PendingCatch[]
 }
 
 function uid(): string {
@@ -57,6 +68,9 @@ export class MockGameClient implements GameClient {
   private cultist: Cultist | null
   private rites: Rite[]
   private pactRec: Pact | null
+  private bargain: Bargain | null
+  private pendingCatches: PendingCatch[]
+  private offerCooldown = 4          // ticks before the Tempter may call unbidden
   private timer: ReturnType<typeof setInterval> | null = null
   private savePending = false
 
@@ -66,6 +80,8 @@ export class MockGameClient implements GameClient {
     this.cultist = loaded?.cultist ?? null
     this.rites = loaded?.rites ?? []
     this.pactRec = loaded?.pact ?? null
+    this.bargain = loaded?.bargain ?? null
+    this.pendingCatches = loaded?.pendingCatches ?? []
     this.startTicking()
   }
 
@@ -85,6 +101,7 @@ export class MockGameClient implements GameClient {
       try {
         const state: SaveState = {
           cells: this.cells, cultist: this.cultist, rites: this.rites, pact: this.pactRec,
+          bargain: this.bargain, pendingCatches: this.pendingCatches,
         }
         localStorage.setItem(SAVE_KEY, JSON.stringify(state))
       } catch { /* quota / private mode — best effort */ }
@@ -167,6 +184,103 @@ export class MockGameClient implements GameClient {
       }
     }
 
+    this.tempterTick()
+    this.save()
+  }
+
+  // ---------- Nyarlathotep, the Tempter (spec §6, §7) ----------
+  // Two halves run every tick: resolve catches already in play (the price of
+  // past bargains), then — if no offer stands — decide whether to tempt anew.
+  private tempterTick(): void {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return
+
+    this.resolveCatches()
+
+    if (this.offerCooldown > 0) this.offerCooldown -= 1
+    // The fraying mind is courted far more often than the lucid one (spec §6).
+    const t = Math.max(0, Math.min(1, (100 - cu.sanity) / 100))
+    const offerChance = 0.03 + t * 0.22
+    if (!this.bargain && this.offerCooldown <= 0 && Math.random() < offerChance) {
+      this.makeOffer()
+    }
+  }
+
+  private makeOffer(): void {
+    const cu = this.cultist
+    if (!cu) return
+    const b = rollBargain(cu.sanity, uid())
+    if (!b) return
+    this.bargain = b
+    this.offerCooldown = 6   // a quiet beat before the next unbidden call
+    this.emit({ type: 'bargain_offer', data: { bargain: b } })
+    this.save()
+  }
+
+  // Each accepted catch rolls per tick over its window; it springs once, or the
+  // window empties and the gamble passes — getting away clean is real, which is
+  // what keeps risky play tempting (spec §7).
+  private resolveCatches(): void {
+    if (this.pendingCatches.length === 0) return
+    const survivors: PendingCatch[] = []
+    for (const pc of this.pendingCatches) {
+      const perTick = perTickSpringChance(pc.catch.chance, pc.window)
+      if (Math.random() < perTick) {
+        this.springCatch(pc.catch)
+        continue
+      }
+      pc.ticksLeft -= 1
+      if (pc.ticksLeft <= 0) {
+        this.emit({ type: 'bargain_sprung', data: {
+          kind: 'passed', sprung: false,
+          message: 'The pact passes unclaimed. The Crawling Chaos forgets nothing, but tonight it stays its hand.',
+        } })
+      } else {
+        survivors.push(pc)
+      }
+    }
+    this.pendingCatches = survivors
+  }
+
+  private springCatch(c: BargainCatch): void {
+    const cu = this.cultist
+    const home = cu ? this.cell(cu.cellId) : undefined
+    if (!cu || !home) return
+
+    if (c.kind === 'attention') {
+      const damage = c.devotionLoss ?? 20_000
+      home.devotion = Math.max(0, home.devotion - damage)
+      home.claimed += damage
+      const from = this.cells[Math.floor(Math.random() * this.cells.length)] ?? home
+      this.emit({ type: 'rite_strike', data: {
+        casterName: 'Nyarlathotep', casterCellName: 'the spaces between', targetCellId: home.id,
+        riteType: 'the price named', damage,
+        fromLat: from.lat, fromLng: from.lng, toLat: home.lat, toLng: home.lng,
+      } })
+      this.emit({ type: 'cell_update', data: cellUpdate(home) })
+      this.emit({ type: 'bargain_sprung', data: {
+        kind: 'attention', sprung: true,
+        message: `The gift is called in: ${damage.toLocaleString()} devotion torn from your cell as something vast turns its eye upon you.`,
+      } })
+    } else if (c.kind === 'defection') {
+      const damage = c.devotionLoss ?? 12_000
+      home.devotion = Math.max(0, home.devotion - damage)
+      home.claimed += damage
+      home.contributorCount = Math.max(1, home.contributorCount - (c.contributorLoss ?? 4))
+      this.emit({ type: 'cell_update', data: cellUpdate(home) })
+      this.emit({ type: 'bargain_sprung', data: {
+        kind: 'defection', sprung: true,
+        message: `The swarm turns. ${damage.toLocaleString()} devotion walks out into the dark, singing for another.`,
+      } })
+    } else if (c.kind === 'false-clarity') {
+      const crash = c.sanityCrash ?? 30
+      cu.sanity = Math.max(0, cu.sanity - crash)
+      this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
+      this.emit({ type: 'bargain_sprung', data: {
+        kind: 'false-clarity', sprung: true,
+        message: 'The quiet was a held breath. It breaks — and you fall further than the calm ever lifted you.',
+      } })
+    }
     this.save()
   }
 
@@ -322,21 +436,51 @@ export class MockGameClient implements GameClient {
     this.adjustSanity(12)
   }
 
-  async delve(): Promise<{ riteType: string; sanityCost: number }> {
+  // ---------- GameClient: bargains ----------
+  async currentBargain(): Promise<Bargain | null> {
+    return this.bargain ? { ...this.bargain } : null
+  }
+
+  courtTempter(): void {
+    // He always answers a call — a fresh offer replaces any standing one.
+    if (!this.cultist || this.cultist.tier === 'witness') return
+    this.makeOffer()
+  }
+
+  async acceptBargain(id: string): Promise<BargainOutcome> {
     const cu = this.cultist
     if (!cu) throw new Error('not a cultist')
-    const sanityCost = 18
-    cu.sanity = Math.max(0, cu.sanity - sanityCost)
-    // The lower the mind sinks, the stronger the gift offered.
-    const pool = cu.sanity < 45
-      ? ['Manifestation I', 'Manifestation II', 'Manifestation III']
-      : ['Whisper II', 'Whisper III', 'Manifestation I']
-    const riteType = pool[hashStr(cu.id + cu.sanity) % pool.length]
-    this.grantRite(cu, riteType, 'forbidden')
+    const b = this.bargain
+    if (!b || b.id !== id) throw new Error('that offer has passed')
+    this.bargain = null
+    const home = this.cell(cu.cellId)
+
+    // The visible half of the trade: take the grant, pay the named sanity cost.
+    if (b.grantRiteType) this.grantRite(cu, b.grantRiteType, 'bargain')
+    if (b.grantDevotion && home) {
+      home.devotion += b.grantDevotion
+      if (home.devotion > home.peakDevotion) home.peakDevotion = home.devotion
+      this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    }
+    if (b.grantSanity) cu.sanity = Math.min(100, cu.sanity + b.grantSanity)
+    if (b.sanityCost) cu.sanity = Math.max(0, cu.sanity - b.sanityCost)
     this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
-    this.emit({ type: 'revelation_earned', data: { revelationName: 'A gift from the dark', riteType } })
+
+    // The hidden half: the catch is now in play, to spring or pass over its window.
+    this.pendingCatches.push({ bargainId: b.id, catch: b.catch, window: b.window, ticksLeft: b.window })
+
+    this.emit({ type: 'revelation_earned', data: {
+      revelationName: 'A pact is sealed', riteType: b.grantRiteType,
+    } })
     this.save()
-    return { riteType, sanityCost }
+    return { granted: b.grantLabel, sanityCost: b.sanityCost }
+  }
+
+  declineBargain(id: string): void {
+    if (this.bargain && this.bargain.id === id) {
+      this.bargain = null
+      this.save()
+    }
   }
 
   // ---------- realtime ----------

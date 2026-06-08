@@ -4,7 +4,7 @@ interface SanityMeterProps {
   sanity: number
   hallucinating: boolean
   onLucidity: () => void
-  onDelve: () => void
+  onCourt: () => void
 }
 
 function label(sanity: number): string {
@@ -22,7 +22,7 @@ function meterColor(sanity: number): string {
   return 'var(--crimson)'
 }
 
-export default function SanityMeter({ sanity, hallucinating, onLucidity, onDelve }: SanityMeterProps) {
+export default function SanityMeter({ sanity, hallucinating, onLucidity, onCourt }: SanityMeterProps) {
   const [open, setOpen] = useState(true)
   const pct = Math.max(0, Math.min(100, sanity))
 
@@ -62,9 +62,9 @@ export default function SanityMeter({ sanity, hallucinating, onLucidity, onDelve
               Rite of Lucidity
               <span style={hint}>+sanity</span>
             </button>
-            <button onClick={onDelve} style={btn('var(--crimson)')}>
-              Delve for Power
-              <span style={hint}>−sanity, +rite</span>
+            <button onClick={onCourt} style={btn('#9a5fe0')}>
+              Court the Tempter
+              <span style={hint}>summon a bargain</span>
             </button>
           </div>
 
