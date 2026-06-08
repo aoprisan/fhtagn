@@ -367,21 +367,21 @@ button:active { filter: brightness(0.92); }
   }
   .sheet > *::before, .sheet > *::after { display: none !important; }
 
-  /* Chant orb: the ritual focus. Centered in its own band above the dock and
-     ordered BELOW the dock so every rune tab stays tappable (the orb sits
-     clear of them vertically). It is unmounted while a grimoire sheet is open
-     (see App) so it never floats over the drawer. */
+  /* Chant orb: the ritual focus. Anchored bottom-RIGHT in the natural thumb
+     zone, sitting just above the dock. It is unmounted while a grimoire sheet
+     is open (see App), so it is fine to overlap the dock band here — when a
+     rune tab is summoned the orb is gone and every tab stays tappable. */
   .click-button-area {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    bottom: calc(var(--dock-h) + var(--safe-b) + 18px) !important;
+    left: auto !important;
+    right: 18px !important;
+    transform: none !important;
+    bottom: calc(var(--dock-h) + var(--safe-b) + 14px) !important;
     z-index: 58 !important;
   }
   .chant-orb {
-    width: 104px !important;
-    height: 104px !important;
-    font-size: 19px !important;
+    width: 136px !important;
+    height: 136px !important;
+    font-size: 22px !important;
   }
 
   /* Centered overlays keep clear of the dock */
