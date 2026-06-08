@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="field" cx="50%" cy="44%" r="72%">
+      <stop offset="0%" stop-color="#07141d"/>
+      <stop offset="55%" stop-color="#030810"/>
+      <stop offset="100%" stop-color="#010307"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="60%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+    </radialGradient>
+    <radialGradient id="node" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#f4cf6a"/>
+      <stop offset="100%" stop-color="#d8a93a"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#5cf2da"/>
+      <stop offset="45%" stop-color="#2bbfa8"/>
+      <stop offset="100%" stop-color="#0e4a43"/>
+    </radialGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5cf2da"/>
+      <stop offset="100%" stop-color="#2bbfa8"/>
+    </linearGradient>
+    <filter id="bloom" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/></filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#field)"/>
+       <rect width="512" height="512" fill="url(#vignette)"/>
+
+  <!-- ritual boundary -->
+  <circle cx="256" cy="256" r="195.84" fill="none" stroke="#0e4a43" stroke-width="2.2" opacity="0.7"/>
+  <circle cx="256" cy="256" r="188.84" fill="none" stroke="#2bbfa8" stroke-width="1" opacity="0.32"/>
+  
+
+  <!-- the woven sigil -->
+  <g filter="url(#bloom)">
+    <path d="M256 103 L322.38 393.85 L136.38 160.61 L405.16 290.05 L106.84 290.05 L375.62 160.61 L189.62 393.85 Z" fill="none" stroke="url(#stroke)" stroke-width="4.08" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M256 185.62 L286.54 319.41 L200.97 212.12 L324.62 271.66 L187.38 271.66 L311.03 212.12 L225.46 319.41 Z" fill="none" stroke="#2bbfa8" stroke-width="1.84" stroke-linejoin="round" opacity="0.5"/>
+  </g>
+
+  <!-- the eye that watches the deep -->
+  <g filter="url(#bloom)">
+    <path d="M162.16 256 Q256 207.04 349.84000000000003 256 Q256 304.96 162.16 256 Z" fill="#010307" stroke="url(#stroke)" stroke-width="3.47"/>
+    <circle cx="256" cy="256" r="34.68" fill="url(#iris)"/>
+    <ellipse cx="256" cy="256" rx="9.18" ry="30.6" fill="#010307"/>
+    <ellipse cx="251.41" cy="243.76" rx="4.59" ry="8.57" fill="#5cf2da" opacity="0.6"/>
+    <circle cx="256" cy="256" r="34.68" fill="none" stroke="#d8a93a" stroke-width="1.6" opacity="0.8"/>
+  </g>
+
+  
+      <circle cx="256" cy="103" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="256" cy="103" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="256" cy="103" r="3.06" fill="#fff6df"/>
+      <circle cx="375.62" cy="160.61" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="375.62" cy="160.61" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="375.62" cy="160.61" r="3.06" fill="#fff6df"/>
+      <circle cx="405.16" cy="290.05" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="405.16" cy="290.05" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="405.16" cy="290.05" r="3.06" fill="#fff6df"/>
+      <circle cx="322.38" cy="393.85" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="322.38" cy="393.85" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="322.38" cy="393.85" r="3.06" fill="#fff6df"/>
+      <circle cx="189.62" cy="393.85" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="189.62" cy="393.85" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="189.62" cy="393.85" r="3.06" fill="#fff6df"/>
+      <circle cx="106.84" cy="290.05" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="106.84" cy="290.05" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="106.84" cy="290.05" r="3.06" fill="#fff6df"/>
+      <circle cx="136.38" cy="160.61" r="18.36" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="136.38" cy="160.61" r="7.65" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="136.38" cy="160.61" r="3.06" fill="#fff6df"/>
+  
+</svg>

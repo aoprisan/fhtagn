@@ -13,6 +13,7 @@ import PactPanel from './components/PactPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import SigilCanvas from './components/SigilCanvas'
 import SanityMeter from './components/SanityMeter'
+import PwaPrompts from './components/PwaPrompts'
 import { game } from './client'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
@@ -313,6 +314,8 @@ export default function App() {
       <WorldPanel stats={worldStats} totalDevotion={totalDevotion} />
 
       <ToastSystem toasts={toasts} />
+
+      <PwaPrompts />
 
       {/* Desktop: panels float around the edges. Mobile: the rune dock + sheet below. */}
       {!isMobile && (

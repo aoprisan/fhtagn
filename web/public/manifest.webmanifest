@@ -4,7 +4,13 @@
   "description": "Found a cult cell, chant, trace sigils, and wake a sleeping god.",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#04060c",
-  "theme_color": "#04060c",
-  "icons": []
+  "background_color": "#010307",
+  "theme_color": "#02040a",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icon-192-maskable.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
+    { "src": "icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
 }

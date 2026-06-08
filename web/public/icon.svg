@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="field" cx="50%" cy="44%" r="72%">
+      <stop offset="0%" stop-color="#07141d"/>
+      <stop offset="55%" stop-color="#030810"/>
+      <stop offset="100%" stop-color="#010307"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="60%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+    </radialGradient>
+    <radialGradient id="node" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#f4cf6a"/>
+      <stop offset="100%" stop-color="#d8a93a"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#5cf2da"/>
+      <stop offset="45%" stop-color="#2bbfa8"/>
+      <stop offset="100%" stop-color="#0e4a43"/>
+    </radialGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5cf2da"/>
+      <stop offset="100%" stop-color="#2bbfa8"/>
+    </linearGradient>
+    <filter id="bloom" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/></filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#field)"/>
+       <rect width="512" height="512" fill="url(#vignette)"/>
+
+  <!-- ritual boundary -->
+  <circle cx="256" cy="256" r="176.64" fill="none" stroke="#0e4a43" stroke-width="2.2" opacity="0.7"/>
+  <circle cx="256" cy="256" r="169.64" fill="none" stroke="#2bbfa8" stroke-width="1" opacity="0.32"/>
+  <line x1="439.64" y1="256" x2="448.64" y2="256" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="435.04" y1="296.86" x2="438.94" y2="297.75" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="421.45" y1="335.68" x2="425.06" y2="337.41" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="399.58" y1="370.5" x2="402.7" y2="372.99" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="370.5" y1="399.58" x2="376.11" y2="406.61" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="335.68" y1="421.45" x2="337.41" y2="425.06" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="296.86" y1="435.04" x2="297.75" y2="438.94" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="256" y1="439.64" x2="256" y2="443.64" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="215.14" y1="435.04" x2="213.13" y2="443.81" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="176.32" y1="421.45" x2="174.59" y2="425.06" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="141.5" y1="399.58" x2="139.01" y2="402.7" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="112.42" y1="370.5" x2="109.3" y2="372.99" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="90.55" y1="335.68" x2="82.44" y2="339.58" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="76.96" y1="296.86" x2="73.06" y2="297.75" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="72.36" y1="256" x2="68.36" y2="256" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="76.96" y1="215.14" x2="73.06" y2="214.25" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="90.55" y1="176.32" x2="82.44" y2="172.42" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="112.42" y1="141.5" x2="109.3" y2="139.01" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="141.5" y1="112.42" x2="139.01" y2="109.3" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="176.32" y1="90.55" x2="174.59" y2="86.94" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="215.14" y1="76.96" x2="213.13" y2="68.19" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="256" y1="72.36" x2="256" y2="68.36" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="296.86" y1="76.96" x2="297.75" y2="73.06" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="335.68" y1="90.55" x2="337.41" y2="86.94" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="370.5" y1="112.42" x2="376.11" y2="105.39" stroke="#d8a93a" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/><line x1="399.58" y1="141.5" x2="402.7" y2="139.01" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="421.45" y1="176.32" x2="425.06" y2="174.59" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/><line x1="435.04" y1="215.14" x2="438.94" y2="214.25" stroke="#0e4a43" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- the woven sigil -->
+  <g filter="url(#bloom)">
+    <path d="M256 118 L315.88 380.33 L148.11 169.96 L390.54 286.71 L121.46 286.71 L363.89 169.96 L196.12 380.33 Z" fill="none" stroke="url(#stroke)" stroke-width="3.68" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M256 192.52 L283.54 313.19 L206.37 216.42 L317.89 270.13 L194.11 270.13 L305.63 216.42 L228.46 313.19 Z" fill="none" stroke="#2bbfa8" stroke-width="1.66" stroke-linejoin="round" opacity="0.5"/>
+  </g>
+
+  <!-- the eye that watches the deep -->
+  <g filter="url(#bloom)">
+    <path d="M171.36 256 Q256 211.84 340.64 256 Q256 300.16 171.36 256 Z" fill="#010307" stroke="url(#stroke)" stroke-width="3.13"/>
+    <circle cx="256" cy="256" r="31.28" fill="url(#iris)"/>
+    <ellipse cx="256" cy="256" rx="8.28" ry="27.6" fill="#010307"/>
+    <ellipse cx="251.86" cy="244.96" rx="4.14" ry="7.73" fill="#5cf2da" opacity="0.6"/>
+    <circle cx="256" cy="256" r="31.28" fill="none" stroke="#d8a93a" stroke-width="1.6" opacity="0.8"/>
+  </g>
+
+  
+      <circle cx="256" cy="118" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="256" cy="118" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="256" cy="118" r="2.76" fill="#fff6df"/>
+      <circle cx="363.89" cy="169.96" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="363.89" cy="169.96" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="363.89" cy="169.96" r="2.76" fill="#fff6df"/>
+      <circle cx="390.54" cy="286.71" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="390.54" cy="286.71" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="390.54" cy="286.71" r="2.76" fill="#fff6df"/>
+      <circle cx="315.88" cy="380.33" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="315.88" cy="380.33" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="315.88" cy="380.33" r="2.76" fill="#fff6df"/>
+      <circle cx="196.12" cy="380.33" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="196.12" cy="380.33" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="196.12" cy="380.33" r="2.76" fill="#fff6df"/>
+      <circle cx="121.46" cy="286.71" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="121.46" cy="286.71" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="121.46" cy="286.71" r="2.76" fill="#fff6df"/>
+      <circle cx="148.11" cy="169.96" r="16.56" fill="#d8a93a" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="148.11" cy="169.96" r="6.9" fill="url(#node)" stroke="#f4cf6a" stroke-width="1.2"/>
+      <circle cx="148.11" cy="169.96" r="2.76" fill="#fff6df"/>
+  <rect width="512" height="512" filter="url(#grain)" opacity="0.05"/>
+</svg>
