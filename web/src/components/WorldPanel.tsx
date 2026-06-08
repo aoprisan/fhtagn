@@ -1,11 +1,12 @@
-import type { WorldStats } from '../types'
+import type { WorldStats, AwakeningState } from '../types'
 
 interface WorldPanelProps {
   stats: WorldStats | null
   totalDevotion: number
+  awakening: AwakeningState | null
 }
 
-export default function WorldPanel({ stats, totalDevotion }: WorldPanelProps) {
+export default function WorldPanel({ stats, totalDevotion, awakening }: WorldPanelProps) {
   return (
     <div className="global-counter" style={{
       position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
@@ -44,6 +45,35 @@ export default function WorldPanel({ stats, totalDevotion }: WorldPanelProps) {
           </div>
         </div>
       )}
+
+      {/* The Convergence — a thin telegraph that the stars are coming right (spec §9). */}
+      {awakening && (awakening.aligned || awakening.progress > 0.35) && (
+        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          {awakening.aligned ? (
+            <span style={{
+              fontSize: 10, letterSpacing: 2, color: 'var(--gold)', fontWeight: 700,
+              textShadow: '0 0 12px rgba(216,169,58,0.6)', animation: 'convergeBlink 1.6s ease-in-out infinite',
+            }}>
+              ✦ THE STARS ARE RIGHT ✦
+            </span>
+          ) : (
+            <span style={{ fontSize: 9, letterSpacing: 1, color: 'var(--text-dim)' }}>
+              the Convergence · {Math.round(awakening.progress * 100)}%
+            </span>
+          )}
+          <div style={{ width: 180, height: 4, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${Math.round(awakening.progress * 100)}%`,
+              background: awakening.aligned ? 'var(--gold)' : 'linear-gradient(90deg, var(--teal), var(--gold))',
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes convergeBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
     </div>
   )
 }

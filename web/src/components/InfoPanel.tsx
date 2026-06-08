@@ -11,9 +11,10 @@ interface InfoPanelProps {
   isHome: boolean
   userDevotion?: number
   rank?: number
+  onSpread?: () => void
 }
 
-export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPanelProps) {
+export default function InfoPanel({ cell, isHome, userDevotion, rank, onSpread }: InfoPanelProps) {
   const [contributors, setContributors] = useState<Contributor[]>([])
   const [dailyChangePercent, setDailyChangePercent] = useState<number>(0)
   const refreshTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -111,6 +112,14 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPane
           <Row label="The claimed" value={cell.claimed.toLocaleString()} color="var(--crimson)" />
         )}
 
+        {(cell.reach > 0 || isHome) && (
+          <Row label="Reach" value={`${cell.reach} cells`} color="var(--teal)" />
+        )}
+
+        {(cell.lore > 0 || isHome) && (
+          <Row label="Lore" value={String(cell.lore)} color="var(--gold)" />
+        )}
+
         {(cell.wardLevel > 0 || isHome) && (
           <Row label="Wards" value={`${Math.round(cell.wardLevel)}%`} color="var(--violet)" />
         )}
@@ -121,21 +130,40 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPane
       </div>
 
       {isHome && (
-        <button
-          onClick={() => game.ward()}
-          title="Raise the wards against the Roil — they erode over time and must be tended"
-          style={{
-            marginTop: 12, width: '100%', background: 'rgba(124, 107, 176, 0.08)',
-            border: '1px solid var(--violet)', borderRadius: 8, padding: '8px 6px',
-            color: 'var(--violet)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-          }}
-        >
-          Tend the Wards
-          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
-            shelter from the Roil
-          </span>
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button
+            onClick={() => game.ward()}
+            title="Raise the wards against the Roil — they erode over time and must be tended"
+            style={{
+              flex: 1, background: 'rgba(124, 107, 176, 0.08)',
+              border: '1px solid var(--violet)', borderRadius: 8, padding: '8px 6px',
+              color: 'var(--violet)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+            }}
+          >
+            Tend the Wards
+            <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
+              shelter from the Roil
+            </span>
+          </button>
+          {onSpread && (
+            <button
+              onClick={onSpread}
+              title="Carry the word to a nearby cell — convert the uncommitted, or flip a rival you overpower"
+              style={{
+                flex: 1, background: 'rgba(43, 191, 168, 0.08)',
+                border: '1px solid var(--teal)', borderRadius: 8, padding: '8px 6px',
+                color: 'var(--teal)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+              }}
+            >
+              Spread the Word
+              <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
+                convert a nearby cell
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {contributors.length > 0 && (

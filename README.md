@@ -31,6 +31,12 @@ What's in it:
   grant and the sanity cost are shown; the **catch is hidden** and springs probabilistically
   later — a strike, a defection, a false calm. A genuine gamble, not a known trade. Call him
   yourself with *Court the Tempter*, or wait to be courted.
+- **Spread & the Awakening** — carry the word city→city with *Spread the Word*: convert the
+  uncommitted, or flip a rival you overpower (Hastur flips anyone). Spread widens your **Reach**
+  and uncovers **Lore** — three leaderboards now rank Devotion, Reach, and Lore. As cults amass
+  their **Great Work**, the **Convergence** climbs; when the stars are right, the first cult to
+  perform the **Great Rite** wakes its god, the world reseeds, and a new **Cycle** begins. Dawdle
+  and a rival wakes theirs first — the reason to push past safe play.
 
 ## Develop
 
