@@ -30,16 +30,34 @@ export class PointCloudRecognizer {
     let best = Infinity
     let bestName = ''
     for (const t of this.templates) {
-      const d = Math.min(
-        greedyCloudMatch(candidate, t.points),
-        greedyCloudMatch(t.points, candidate),
-      )
+      const d = this.matchDistance(candidate, t.points)
       if (d < best) { best = d; bestName = t.name }
     }
-    // Map distance to a 0..1 score (half-diagonal of unit box ≈ 0.707).
-    const score = Math.max(0, 1 - best / (0.5 * Math.SQRT2))
-    return { name: bestName, score }
+    return { name: bestName, score: distanceToScore(best) }
   }
+
+  // Score the trace against ONE specific template, ignoring the others. Used so
+  // a rite succeeds when the player draws *its* sigil well enough — it doesn't
+  // also have to out-resemble every other family's sigil (spec §4: forgiving).
+  scoreFor(name: string, points: Pt[]): number | null {
+    if (points.length < 8) return null
+    const t = this.templates.find(t => t.name === name)
+    if (!t) return null
+    const candidate = normalize(points)
+    return distanceToScore(this.matchDistance(candidate, t.points))
+  }
+
+  private matchDistance(candidate: Pt[], template: Pt[]): number {
+    return Math.min(
+      greedyCloudMatch(candidate, template),
+      greedyCloudMatch(template, candidate),
+    )
+  }
+}
+
+// Map a $P cloud distance to a 0..1 score (half-diagonal of unit box ≈ 0.707).
+function distanceToScore(d: number): number {
+  return Math.max(0, 1 - d / (0.5 * Math.SQRT2))
 }
 
 // ---- $P pipeline ----
