@@ -1,0 +1,47 @@
+import { useEffect, useRef, useState } from 'react'
+import { game, ConnectionState } from '../client'
+import type {
+  CellUpdate, CellChant, RiteStrike, IndifferenceStrike, RevelationEarned, SanityUpdate,
+} from '../types'
+
+export type { ConnectionState }
+
+export interface GameClientHandlers {
+  onCellUpdate?: (u: CellUpdate) => void
+  onCellChant?: (c: CellChant) => void
+  onRiteStrike?: (s: RiteStrike) => void
+  onRiteIncoming?: (s: RiteStrike) => void
+  onIndifference?: (s: IndifferenceStrike) => void
+  onRevelation?: (r: RevelationEarned) => void
+  onSanity?: (s: SanityUpdate) => void
+}
+
+/**
+ * Subscribes to the shared GameClient event stream and routes each event to the
+ * matching callback. Replaces the old useWebSocket — same role, but the source
+ * is the GameClient (mock today, live backend later).
+ */
+export function useGameClient(handlers: GameClientHandlers) {
+  const [connectionState, setConnectionState] = useState<ConnectionState>(game.connectionState())
+  const ref = useRef(handlers)
+  ref.current = handlers
+
+  useEffect(() => {
+    const unsubscribe = game.on(e => {
+      const h = ref.current
+      switch (e.type) {
+        case 'cell_update': h.onCellUpdate?.(e.data); break
+        case 'cell_chant': h.onCellChant?.(e.data); break
+        case 'rite_strike': h.onRiteStrike?.(e.data); break
+        case 'rite_incoming': h.onRiteIncoming?.(e.data); break
+        case 'indifference_strike': h.onIndifference?.(e.data); break
+        case 'revelation_earned': h.onRevelation?.(e.data); break
+        case 'sanity_update': h.onSanity?.(e.data); break
+      }
+    })
+    setConnectionState(game.connectionState())
+    return unsubscribe
+  }, [])
+
+  return { connectionState }
+}

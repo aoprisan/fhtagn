@@ -1,0 +1,10 @@
+{
+  "name": "FHTAGN — the stars are right",
+  "short_name": "FHTAGN",
+  "description": "Found a cult cell, chant, trace sigils, and wake a sleeping god.",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04060c",
+  "theme_color": "#04060c",
+  "icons": []
+}
