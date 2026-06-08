@@ -21,12 +21,12 @@ export default function CultistPanel({ cultist, personalChants, cellName }: Cult
     }}>
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--gold)' }}>{cultist.name}</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, letterSpacing: 0.5, color: 'var(--gold)' }}>{cultist.name}</span>
           {cultist.tier === 'highPriest' && (
             <span style={{ fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>2× devotion</span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
+        <div className="eyebrow" style={{ fontSize: 11, color: 'var(--text-dim)' }}>
           {TIER_LABEL[cultist.tier]} {cellName && `· ${cellName}`}
         </div>
         {patron && (

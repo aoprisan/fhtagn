@@ -1,201 +1,390 @@
+/* ============================================================================
+   FHTAGN — "The Drowned Vigil"
+   An abyssal, candle-lit ritual interface. Deep black water; bioluminescent
+   brine; bone-pale script read by failing light; something vast turning below.
+   ========================================================================= */
+
 :root {
-  /* FHTAGN — abyssal void, eldritch teal, sickly gold, madness crimson */
-  --void: #04060c;
-  --bg: #06080f;
-  --bg-panel: rgba(6, 9, 16, 0.85);
-  --teal: #1f9e8f;
-  --teal-dim: #0d4f47;
-  --gold: #c9a227;
+  /* — abyssal ground — */
+  --void: #010307;
+  --abyss: #02040a;
+  --bg: #03050c;
+  --bg-2: #060b12;
+
+  /* — grimoire glass — */
+  --bg-panel: rgba(5, 11, 14, 0.74);
+  --bg-panel-solid: #060d11;
+  --ink: rgba(3, 7, 9, 0.92);
+
+  /* — bioluminescence & ritual fire — */
+  --teal: #2bbfa8;          /* brine glow */
+  --teal-bright: #46e6cd;   /* lure-light */
+  --teal-dim: #0e4a43;
+  --gold: #d8a93a;          /* sickly tallow gold */
   --gold-dim: #8a6e15;
-  --crimson: #c9304a;
+  --crimson: #cf3550;       /* madness */
   --crimson-dim: #7a1c2c;
+  --violet: #7c6bb0;        /* the Indifference */
   /* legacy aliases (kept so any stray reference still resolves) */
-  --red: #c9304a;
+  --red: #cf3550;
   --red-dim: #7a1c2c;
-  --text: #e8e6ef;
-  --text-dim: #7d7d96;
-  --border: rgba(160, 200, 195, 0.1);
-  --font-mono: ui-monospace, 'SF Mono', 'Menlo', 'Cascadia Code', monospace;
-  --font-sans: ui-sans-serif, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+
+  /* — bone-pale text by candlelight — */
+  --text: #ddd4bd;
+  --text-dim: #8c8675;
+  --text-faint: #5b5a51;
+  --border: rgba(70, 230, 205, 0.12);
+  --border-strong: rgba(70, 230, 205, 0.28);
+
+  /* — type — */
+  --font-display: 'Grenze Gotisch', 'Spectral', serif;
+  --font-body: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Spectral', Georgia, serif;   /* alias: components inherit serif */
+  --font-mono: 'Cutive Mono', ui-monospace, 'SF Mono', monospace;
+
+  --shadow-plate: 0 18px 50px -12px rgba(0, 0, 0, 0.8),
+                  0 0 0 1px rgba(0, 0, 0, 0.5),
+                  inset 0 1px 0 rgba(70, 230, 205, 0.06);
+
+  --dock-h: 60px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--abyss);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Panel base */
+/* ── Atmosphere: vignette + caustic deep glow, fixed behind everything ────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(43, 191, 168, 0.07), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(124, 107, 176, 0.06), transparent 55%),
+    radial-gradient(100% 100% at 50% 50%, transparent 38%, rgba(0, 0, 0, 0.55) 100%);
+  animation: tide 14s ease-in-out infinite;
+}
+
+/* ── Atmosphere: film grain, fixed, faintly crawling ──────────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 7s steps(6) infinite;
+}
+
+@keyframes tide {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4%, 3%); }
+  40% { transform: translate(3%, -5%); }
+  60% { transform: translate(-3%, 4%); }
+  80% { transform: translate(5%, 2%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ── Drifting fog (mounted element in App) ────────────────────────────────── */
+.fog {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+.fog span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.fog span:nth-child(1) {
+  width: 60vmax; height: 60vmax; left: -20vmax; top: -15vmax;
+  background: radial-gradient(circle, rgba(43, 191, 168, 0.16), transparent 70%);
+  animation: drift-a 38s ease-in-out infinite;
+}
+.fog span:nth-child(2) {
+  width: 70vmax; height: 70vmax; right: -25vmax; bottom: -25vmax;
+  background: radial-gradient(circle, rgba(124, 107, 176, 0.14), transparent 70%);
+  animation: drift-b 46s ease-in-out infinite;
+}
+.fog span:nth-child(3) {
+  width: 40vmax; height: 40vmax; right: 10vmax; top: -10vmax;
+  background: radial-gradient(circle, rgba(207, 53, 80, 0.07), transparent 70%);
+  animation: drift-a 54s ease-in-out infinite reverse;
+}
+@keyframes drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(14vmax, 10vmax) scale(1.18); }
+}
+@keyframes drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-12vmax, -8vmax) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after, .fog span { animation: none; }
+}
+
+/* ── Grimoire plate (shared panel chrome) ─────────────────────────────────── */
 .panel {
   position: absolute;
-  background: var(--bg-panel);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
   z-index: 10;
+  background: var(--bg-panel);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-plate);
+}
+/* etched inner keyline + corner ticks */
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(70, 230, 205, 0.08);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--border-strong), var(--border-strong)) 0 0 / 14px 1px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 0 0 / 1px 14px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 100% 0 / 14px 1px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 100% 0 / 1px 14px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 0 100% / 14px 1px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 0 100% / 1px 14px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 100% 100% / 14px 1px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 100% 100% / 1px 14px no-repeat;
+  opacity: 0.7;
 }
 
-/* Logo */
+/* desktop floating geometry (overridden inside the mobile sheet) */
+.leaderboard-panel { top: 22px; right: 24px; width: 264px; }
+.info-panel { bottom: 28px; left: 24px; width: 286px; max-height: 64vh; overflow-y: auto; }
+.player-panel { bottom: 214px; right: 24px; width: 224px; }
+.missile-panel { top: 332px; right: 24px; width: 252px; max-height: 48vh; overflow-y: auto; }
+.subscription-panel { top: 84px; left: 24px; width: 262px; }
+.sanity-panel { bottom: 28px; left: 50%; transform: translateX(-50%); width: 320px; }
+
+/* ── Wordmark ─────────────────────────────────────────────────────────────── */
 .logo {
   position: absolute;
-  top: 20px;
+  top: 16px;
   left: 24px;
-  font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 2px;
-  z-index: 10;
+  z-index: 12;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--bone, var(--text));
+  letter-spacing: 4px;
   user-select: none;
-  text-shadow: 0 0 20px rgba(247, 201, 72, 0.3);
+  text-shadow: 0 0 24px rgba(43, 191, 168, 0.45), 0 0 2px rgba(43, 191, 168, 0.6);
+  animation: flicker 6s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; text-shadow: 0 0 24px rgba(43, 191, 168, 0.45), 0 0 2px rgba(43, 191, 168, 0.6); }
+  47% { opacity: 0.92; }
+  48% { opacity: 0.7; text-shadow: 0 0 8px rgba(43, 191, 168, 0.2); }
+  49% { opacity: 0.95; }
+  72% { opacity: 0.85; }
 }
 
-/* Number formatting */
-.mono {
-  font-family: var(--font-mono);
+/* ── Section heading helper ───────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
+.mono { font-family: var(--font-mono); font-feature-settings: 'tnum'; }
 
-/* Mobile responsiveness */
+/* ── World devotion counter ───────────────────────────────────────────────── */
+.global-counter { z-index: 12; }
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+/* ── Buttons get a tactile press everywhere ───────────────────────────────── */
+button { font-family: var(--font-body); }
+button:active { filter: brightness(0.92); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MOBILE DOCK + SHEET  (hidden on desktop)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dock { display: none; }
+.sheet { display: none; }
+
 @media (max-width: 768px) {
-  .logo {
-    top: 10px;
-    left: 12px;
-    font-size: 14px;
-  }
+  /* Header band: wordmark left, world devotion right */
+  .logo { top: 12px; left: 14px; font-size: 22px; letter-spacing: 3px; }
 
   .global-counter {
-    top: 10px !important;
+    position: absolute !important;
+    top: 12px !important;
+    left: auto !important;
+    right: 14px !important;
+    transform: none !important;
+    text-align: right !important;
+  }
+  .global-counter .eyebrow { font-size: 8.5px !important; }
+  .global-counter .mono { font-size: 17px !important; }
+  .world-stats { display: none; }
+
+  /* Floating panels are taken over by the dock/sheet — hide the free-floating
+     desktop instances; the sheet renders them instead. */
+  .targeting-overlay { bottom: calc(var(--dock-h) + 84px) !important; }
+
+  /* Dock: a rune strip pinned to the bottom edge */
+  .dock {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    height: calc(var(--dock-h) + var(--safe-b));
+    padding-bottom: var(--safe-b);
+    background: linear-gradient(180deg, rgba(3, 7, 11, 0.7), rgba(2, 4, 9, 0.96));
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -14px 40px -10px rgba(0, 0, 0, 0.8);
+  }
+  .dock-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px 2px;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dock-tab .glyph {
+    font-family: var(--font-display);
+    font-size: 19px;
+    line-height: 1;
+    text-shadow: 0 0 10px transparent;
+    transition: text-shadow 0.2s, transform 0.2s;
+  }
+  .dock-tab .cap {
+    font-family: var(--font-display);
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .dock-tab.active { color: var(--teal-bright); }
+  .dock-tab.active .glyph {
+    text-shadow: 0 0 14px rgba(70, 230, 205, 0.7);
+    transform: translateY(-1px);
   }
 
-  .leaderboard-panel {
-    width: 200px !important;
-    right: 12px !important;
-    top: 10px !important;
-    padding: 10px !important;
-    font-size: 12px;
-  }
-
-  .info-panel {
-    width: 220px !important;
-    left: 12px !important;
-    bottom: 20px !important;
-    padding: 12px !important;
-    max-height: 50vh;
+  /* Sheet: the grimoire drawer that rises above the dock */
+  .sheet {
+    display: block;
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(var(--dock-h) + var(--safe-b));
+    z-index: 55;
+    max-height: 62vh;
     overflow-y: auto;
+    padding: 18px 16px calc(18px + 8px);
+    background: linear-gradient(180deg, rgba(6, 12, 16, 0.97), rgba(3, 6, 11, 0.99));
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--border-strong);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -24px 60px -16px rgba(0, 0, 0, 0.9);
+    animation: sheet-rise 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .sheet::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 50%;
+    width: 42px; height: 4px;
+    transform: translateX(-50%);
+    border-radius: 3px;
+    background: var(--border-strong);
+  }
+  @keyframes sheet-rise {
+    from { transform: translateY(18px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
   }
 
-  .player-panel {
-    width: 180px !important;
-    right: 12px !important;
-    bottom: 130px !important;
-    padding: 10px !important;
+  /* Any panel placed inside the sheet sheds its floating geometry */
+  .sheet > * {
+    position: static !important;
+    inset: auto !important;
+    top: auto !important; left: auto !important;
+    right: auto !important; bottom: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    transform: none !important;
+    margin: 6px 0 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
   }
+  .sheet > *::before, .sheet > *::after { display: none !important; }
 
-  .missile-panel {
-    width: 200px !important;
-    left: 12px !important;
-    top: 80px !important;
-    padding: 10px !important;
-  }
-
-  .subscription-panel {
-    width: 200px !important;
-    left: 12px !important;
-    top: 50px !important;
-    bottom: auto !important;
-    padding: 10px !important;
-  }
-
-  .targeting-overlay {
-    bottom: 110px !important;
-  }
-
+  /* Chant button floats clear above the dock */
   .click-button-area {
-    bottom: 20px !important;
+    bottom: calc(var(--dock-h) + var(--safe-b) + 16px) !important;
     right: 16px !important;
+    z-index: 65 !important;
   }
 
-  .click-button-area button {
-    width: 90px !important;
-    height: 90px !important;
-    font-size: 16px !important;
-  }
+  /* Centered overlays keep clear of the dock */
+  .sanity-vignette { /* handled inline */ }
 }
 
-@media (max-width: 480px) {
-  .logo {
-    top: 8px;
-    left: 10px;
-    font-size: 12px;
-    letter-spacing: 1px;
-  }
+@media (max-width: 380px) {
+  .logo { font-size: 19px; }
+  .dock-tab .cap { font-size: 8.5px; letter-spacing: 1px; }
+  .dock-tab .glyph { font-size: 17px; }
+}
 
-  .global-counter {
-    top: 8px !important;
-  }
-
-  .global-counter .mono {
-    font-size: 16px !important;
-  }
-
-  .leaderboard-panel {
-    width: 170px !important;
-    right: 8px !important;
-    padding: 8px !important;
-  }
-
-  .player-panel {
-    display: none !important;
-  }
-
-  .info-panel {
-    width: calc(100vw - 120px) !important;
-    left: 8px !important;
-    bottom: 16px !important;
-    max-height: 40vh;
-  }
-
-  .subscription-panel {
-    position: fixed !important;
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    border-radius: 12px 12px 0 0 !important;
-    padding: 8px 16px !important;
-  }
-
-  .click-button-area {
-    bottom: 16px !important;
-    right: 10px !important;
-  }
-
-  .click-button-area button {
-    width: 72px !important;
-    height: 72px !important;
-    font-size: 14px !important;
-  }
+/* Desktop: ensure dock/sheet never appear */
+@media (min-width: 769px) {
+  .dock, .sheet { display: none !important; }
 }

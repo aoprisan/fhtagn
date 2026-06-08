@@ -67,7 +67,7 @@ export default function PactPanel({ tier, onAscended }: PactPanelProps) {
       <div className="panel subscription-panel" style={{
         top: 80, left: 24, width: 260,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+        <div className="eyebrow" style={{ fontSize: 15, color: 'var(--gold)', marginBottom: 8 }}>
           Ascend to High Priest
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12, lineHeight: 1.5 }}>
@@ -107,7 +107,7 @@ export default function PactPanel({ tier, onAscended }: PactPanelProps) {
       top: 80, left: 24, width: 240,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1 }}>
+        <span className="eyebrow" style={{ fontSize: 15, color: 'var(--gold)' }}>
           The Pact
         </span>
         <button onClick={() => setShow(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 14 }}>×</button>

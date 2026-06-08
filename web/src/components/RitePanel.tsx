@@ -11,7 +11,7 @@ interface RitePanelProps {
 
 export default function RitePanel({ tier, onInvokeRite, refreshKey }: RitePanelProps) {
   const [rites, setRites] = useState<Rite[]>([])
-  const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 768)
+  const [collapsed, setCollapsed] = useState(false)
 
   const loadRites = useCallback(() => {
     if (tier === 'witness') return
@@ -35,7 +35,7 @@ export default function RitePanel({ tier, onInvokeRite, refreshKey }: RitePanelP
           cursor: 'pointer', marginBottom: collapsed ? 0 : 10,
         }}
       >
-        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12, color: 'var(--crimson)', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <span className="eyebrow" style={{ fontSize: 14, color: 'var(--crimson)' }}>
           Rites Known ({rites.length})
         </span>
         <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{collapsed ? '+' : '-'}</span>

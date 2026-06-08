@@ -51,11 +51,17 @@ export default function Onboarding({ cells, onRegistered, fading }: OnboardingPr
       transition: 'opacity 0.4s ease-out',
     }}>
       <div style={{
-        background: 'var(--bg-panel)', border: '1px solid var(--border)',
-        borderRadius: 16, padding: 32, width: 420, maxWidth: '90vw',
-        maxHeight: '82vh', display: 'flex', flexDirection: 'column', gap: 16,
+        background: 'linear-gradient(180deg, rgba(8,15,18,0.96), rgba(3,6,11,0.98))',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 6, padding: 30, width: 420, maxWidth: '92vw',
+        maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 16,
+        boxShadow: '0 24px 70px -16px rgba(0,0,0,0.85), inset 0 1px 0 rgba(70,230,205,0.08)',
       }}>
-        <h2 style={{ fontFamily: 'var(--font-mono)', color: 'var(--gold)', fontSize: 20, textAlign: 'center', letterSpacing: 3 }}>
+        <h2 style={{
+          fontFamily: 'var(--font-display)', fontWeight: 900, color: 'var(--text)',
+          fontSize: 34, textAlign: 'center', letterSpacing: 6,
+          textShadow: '0 0 28px rgba(43,191,168,0.5)',
+        }}>
           FHTAGN
         </h2>
 

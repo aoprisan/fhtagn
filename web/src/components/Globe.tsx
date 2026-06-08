@@ -137,9 +137,9 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
 
   const pointColor = useCallback((d: any) => {
     const cell = d as Cell
-    if (cell.id === userCellId) return '#c9a227'       // sickly gold — yours
-    if (cell.id === selectedCellId) return '#1f9e8f'   // eldritch teal — selected
-    return cell.devotion > 0 ? '#1f9e8faa' : '#1f9e8f33'
+    if (cell.id === userCellId) return '#f0c54a'       // sickly tallow gold — yours
+    if (cell.id === selectedCellId) return '#46e6cd'   // lure-light — selected
+    return cell.devotion > 0 ? '#2bbfa8cc' : '#2bbfa83a'
   }, [userCellId, selectedCellId])
 
   const pointRadius = useCallback((d: any) => {
@@ -178,12 +178,12 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
     <GlobeGL
       ref={globeRef}
       // No Earth/space textures — the void is the aesthetic and keeps us CDN-free.
-      backgroundColor="#04060c"
+      backgroundColor="#02040a"
       polygonsData={polygons}
-      polygonCapColor={() => 'rgba(20, 40, 38, 0.55)'}
-      polygonSideColor={() => 'rgba(31, 158, 143, 0.08)'}
-      polygonStrokeColor={() => 'rgba(31, 158, 143, 0.25)'}
-      polygonAltitude={0.005}
+      polygonCapColor={() => 'rgba(10, 28, 30, 0.6)'}
+      polygonSideColor={() => 'rgba(43, 191, 168, 0.06)'}
+      polygonStrokeColor={() => 'rgba(70, 230, 205, 0.28)'}
+      polygonAltitude={0.006}
       pointsData={cells}
       pointLat="lat"
       pointLng="lng"
@@ -196,12 +196,12 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
       ringsData={ringsData}
       ringLat="lat"
       ringLng="lng"
-      ringColor={() => '#c9a227'}
+      ringColor={() => '#46e6cd'}
       ringMaxRadius={3}
       ringPropagationSpeed={2}
       ringRepeatPeriod={800}
-      atmosphereColor="#1f9e8f"
-      atmosphereAltitude={0.18}
+      atmosphereColor="#2bbfa8"
+      atmosphereAltitude={0.22}
       animateIn={true}
       width={dimensions.width}
       height={dimensions.height}

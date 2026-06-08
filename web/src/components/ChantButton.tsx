@@ -81,20 +81,23 @@ export default function ChantButton({ onChant, personalChants, cellName, rateLim
 
         <button
           onClick={handleChant}
+          className="chant-orb"
           style={{
             width: 120, height: 120, borderRadius: '50%',
             background: tier === 'witness'
-              ? 'radial-gradient(circle at 35% 35%, #3a8f82, #1f9e8f, #0d4f47)'
-              : 'radial-gradient(circle at 35% 35%, #2fc4b2, var(--teal), #0d4f47)',
-            border: 'none', cursor: 'pointer',
-            boxShadow: '0 0 30px rgba(31, 158, 143, 0.35), inset 0 -3px 6px rgba(0,0,0,0.4)',
-            transform: pressing ? 'scale(0.92)' : 'scale(1)',
+              ? 'radial-gradient(circle at 36% 32%, #5fe9d2, #2bbfa8 45%, #0a3a35 100%)'
+              : 'radial-gradient(circle at 36% 32%, #6ff0da, #2bbfa8 42%, #093b34 100%)',
+            border: '1px solid rgba(70, 230, 205, 0.5)', cursor: 'pointer',
+            boxShadow: '0 0 44px rgba(43, 191, 168, 0.5), 0 0 12px rgba(70,230,205,0.7), inset 0 -6px 14px rgba(0,0,0,0.45), inset 0 4px 10px rgba(255,255,255,0.25)',
+            transform: pressing ? 'scale(0.9)' : 'scale(1)',
             transition: 'transform 0.1s ease',
             touchAction: 'manipulation',
             WebkitTapHighlightColor: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700,
-            color: '#04110f',
+            fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700,
+            letterSpacing: 1.5, color: '#02201c',
+            textShadow: '0 1px 1px rgba(255,255,255,0.35)',
+            animation: 'chantPulse 3.4s ease-in-out infinite',
           }}
         >
           {buttonLabel}
@@ -102,7 +105,7 @@ export default function ChantButton({ onChant, personalChants, cellName, rateLim
       </div>
 
       {tier !== 'witness' && (
-        <span className="mono" style={{ fontSize: 16, color: 'var(--gold)' }}>
+        <span className="mono" style={{ fontSize: 16, color: 'var(--gold)', textShadow: '0 0 14px rgba(216,169,58,0.4)' }}>
           {personalChants.toLocaleString()}
         </span>
       )}
@@ -129,6 +132,10 @@ export default function ChantButton({ onChant, personalChants, cellName, rateLim
           0% { opacity: 1; }
           70% { opacity: 1; }
           100% { opacity: 0; }
+        }
+        @keyframes chantPulse {
+          0%, 100% { box-shadow: 0 0 44px rgba(43,191,168,0.5), 0 0 12px rgba(70,230,205,0.7), inset 0 -6px 14px rgba(0,0,0,0.45), inset 0 4px 10px rgba(255,255,255,0.25); }
+          50% { box-shadow: 0 0 64px rgba(43,191,168,0.7), 0 0 20px rgba(70,230,205,0.9), inset 0 -6px 14px rgba(0,0,0,0.45), inset 0 4px 10px rgba(255,255,255,0.25); }
         }
       `}</style>
     </div>

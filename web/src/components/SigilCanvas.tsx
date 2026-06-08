@@ -7,7 +7,9 @@ import {
 } from '../game/sigil/sigils'
 import { TIER_STROKES } from '../game/catalog'
 
-const SIZE = 320
+// Square sigil pad; shrinks to fit narrow phones. Pointer coords and the guide
+// are both normalised by this same SIZE, so tracing stays accurate at any size.
+const SIZE = Math.min(320, Math.max(240, window.innerWidth - 48))
 const GUIDE_FADE_USES = 4   // ghost-guide fades over the first few traces (spec §4)
 
 interface SigilCanvasProps {
@@ -128,7 +130,7 @@ export default function SigilCanvas({ rite, targetCellName, onMatch, onCancel }:
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--crimson)', fontSize: 16, letterSpacing: 2 }}>
+          <div className="eyebrow" style={{ color: 'var(--crimson)', fontSize: 20, letterSpacing: 3, textShadow: '0 0 18px rgba(207,53,80,0.4)' }}>
             TRACE {FAMILY_SIGIL_NAME[rite.family].toUpperCase()}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>

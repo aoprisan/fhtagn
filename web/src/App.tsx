@@ -37,11 +37,21 @@ export default function App() {
   const [pendingCast, setPendingCast] = useState<{ rite: Rite; cell: Cell } | null>(null)
   const [sanity, setSanity] = useState(100)
   const [hallucinating, setHallucinating] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
+  const [activeTab, setActiveTab] = useState<string | null>(null)
   const hallucinateTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const leaderboardTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const { toasts, addToast } = useToasts()
 
   const tier = cultist?.tier ?? 'witness'
+
+  // Track the viewport so the grimoire dock/sheet replaces floating panels on phones.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const onChange = () => setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   // Load the world + any saved cultist
   useEffect(() => {
@@ -189,6 +199,8 @@ export default function App() {
       return
     }
     setSelectedCell(cell)
+    // On phones, surface the cell's grimoire page when a city is chosen.
+    if (window.matchMedia('(max-width: 768px)').matches) setActiveTab('cell')
   }, [targetingRite])
 
   const handleInvokeRite = useCallback((rite: Rite) => {
@@ -217,14 +229,62 @@ export default function App() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--gold)', fontFamily: 'var(--font-mono)', letterSpacing: 3 }}>
-        the stars are right…
-      </div>
+      <>
+        <div className="fog" aria-hidden><span /><span /><span /></div>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 14, height: '100vh', position: 'relative', zIndex: 10,
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 40, letterSpacing: 8,
+            color: 'var(--text)', textShadow: '0 0 30px rgba(43,191,168,0.5)',
+            animation: 'flicker 6s ease-in-out infinite',
+          }}>
+            FHTAGN
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-dim)', letterSpacing: 1 }}>
+            the stars are right…
+          </div>
+        </div>
+      </>
     )
   }
 
+  // Secondary panels — rendered around the edges on desktop, or inside the
+  // mobile grimoire sheet (one at a time, chosen from the rune dock).
+  const infoPanelEl = selectedCell && (
+    <InfoPanel
+      cell={selectedCell}
+      isHome={cultist ? selectedCell.id === cultist.cellId : false}
+      userDevotion={cultist && selectedCell.id === cultist.cellId ? personalChants : undefined}
+      rank={selectedRank}
+    />
+  )
+  const cultistPanelEl = cultist && (
+    <CultistPanel cultist={cultist} personalChants={personalChants} cellName={userCell?.name} />
+  )
+  const ritePanelEl = <RitePanel tier={tier} onInvokeRite={handleInvokeRite} refreshKey={riteRefreshKey} />
+  const pactPanelEl = <PactPanel tier={tier} onAscended={handleAscended} />
+  const sanityPanelEl = cultist && (
+    <SanityMeter sanity={sanity} hallucinating={hallucinating} onLucidity={handleLucidity} onDelve={handleDelve} />
+  )
+  const leaderboardEl = <Leaderboard cells={leaderboard} />
+
+  const dockTabs = [
+    infoPanelEl && { key: 'cell', glyph: '◈', cap: 'Cell', el: infoPanelEl },
+    cultistPanelEl && { key: 'you', glyph: '☩', cap: 'You', el: cultistPanelEl },
+    cultist && tier !== 'witness' && { key: 'rites', glyph: '✶', cap: 'Rites', el: ritePanelEl },
+    sanityPanelEl && { key: 'mind', glyph: '☾', cap: 'Mind', el: sanityPanelEl },
+    cultist && tier !== 'witness' && { key: 'pact', glyph: '⛧', cap: 'Pact', el: pactPanelEl },
+    { key: 'ranks', glyph: '♆', cap: 'Ranks', el: leaderboardEl },
+  ].filter(Boolean) as { key: string; glyph: string; cap: string; el: React.ReactNode }[]
+
+  const activeSheet = isMobile ? dockTabs.find(t => t.key === activeTab) : null
+
   return (
     <>
+      <div className="fog" aria-hidden><span /><span /><span /></div>
+
       <ErrorBoundary>
         <Globe
           cells={cells}
@@ -241,7 +301,7 @@ export default function App() {
           aria-hidden
           style={{
             position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none',
-            boxShadow: `inset 0 0 ${120 + (50 - sanity) * 6}px ${40 + (50 - sanity)}px rgba(201, 48, 74, ${((50 - sanity) / 50) * (hallucinating ? 0.55 : 0.32)})`,
+            boxShadow: `inset 0 0 ${120 + (50 - sanity) * 6}px ${40 + (50 - sanity)}px rgba(207, 53, 80, ${((50 - sanity) / 50) * (hallucinating ? 0.55 : 0.32)})`,
             transition: 'box-shadow 0.4s ease',
             filter: hallucinating ? 'saturate(1.4)' : 'none',
           }}
@@ -254,40 +314,34 @@ export default function App() {
 
       <ToastSystem toasts={toasts} />
 
-      <Leaderboard cells={leaderboard} />
-
-      {selectedCell && (
-        <InfoPanel
-          cell={selectedCell}
-          isHome={cultist ? selectedCell.id === cultist.cellId : false}
-          userDevotion={cultist && selectedCell.id === cultist.cellId ? personalChants : undefined}
-          rank={selectedRank}
-        />
+      {/* Desktop: panels float around the edges. Mobile: the rune dock + sheet below. */}
+      {!isMobile && (
+        <>
+          {leaderboardEl}
+          {infoPanelEl}
+          {cultistPanelEl}
+          {ritePanelEl}
+          {pactPanelEl}
+          {sanityPanelEl}
+        </>
       )}
 
-      {cultist && (
-        <CultistPanel
-          cultist={cultist}
-          personalChants={personalChants}
-          cellName={userCell?.name}
-        />
-      )}
-
-      <RitePanel
-        tier={tier}
-        onInvokeRite={handleInvokeRite}
-        refreshKey={riteRefreshKey}
-      />
-
-      <PactPanel tier={tier} onAscended={handleAscended} />
-
-      {cultist && (
-        <SanityMeter
-          sanity={sanity}
-          hallucinating={hallucinating}
-          onLucidity={handleLucidity}
-          onDelve={handleDelve}
-        />
+      {isMobile && (
+        <>
+          {activeSheet && <div className="sheet" key={activeSheet.key}>{activeSheet.el}</div>}
+          <nav className="dock">
+            {dockTabs.map(t => (
+              <button
+                key={t.key}
+                className={`dock-tab ${activeTab === t.key ? 'active' : ''}`}
+                onClick={() => setActiveTab(a => (a === t.key ? null : t.key))}
+              >
+                <span className="glyph">{t.glyph}</span>
+                <span className="cap">{t.cap}</span>
+              </button>
+            ))}
+          </nav>
+        </>
       )}
 
       <ChantButton

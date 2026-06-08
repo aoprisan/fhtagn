@@ -6,7 +6,7 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ cells }: LeaderboardProps) {
-  const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 768)
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
     <div className="panel leaderboard-panel" style={{
@@ -19,7 +19,7 @@ export default function Leaderboard({ cells }: LeaderboardProps) {
           cursor: 'pointer', marginBottom: collapsed ? 0 : 12,
         }}
       >
-        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--text-dim)', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <span className="eyebrow" style={{ fontSize: 14, color: 'var(--teal)' }}>
           Deepest Devotion
         </span>
         <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{collapsed ? '+' : '-'}</span>

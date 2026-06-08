@@ -60,7 +60,7 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPane
     }}>
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontWeight: 600, fontSize: 16 }}>{cell.name}</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, letterSpacing: 1, color: 'var(--text)' }}>{cell.name}</span>
           {isHome && (
             <span style={{
               fontSize: 10, background: 'var(--gold)', color: '#000',
@@ -118,7 +118,7 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank }: InfoPane
 
       {contributors.length > 0 && (
         <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <span className="eyebrow" style={{ fontSize: 13, color: 'var(--teal)' }}>
             The Faithful
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>

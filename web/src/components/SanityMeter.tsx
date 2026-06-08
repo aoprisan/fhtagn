@@ -35,7 +35,7 @@ export default function SanityMeter({ sanity, hallucinating, onLucidity, onDelve
         onClick={() => setOpen(!open)}
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: open ? 10 : 0 }}
       >
-        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: meterColor(sanity) }}>
+        <span className="eyebrow" style={{ fontSize: 14, color: meterColor(sanity) }}>
           Sanity · {label(sanity)}
         </span>
         <span className="mono" style={{ fontSize: 12, color: 'var(--text-dim)' }}>{Math.round(pct)}</span>
