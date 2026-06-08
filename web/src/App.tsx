@@ -40,6 +40,10 @@ export default function App() {
   const [sanity, setSanity] = useState(100)
   const [hallucinating, setHallucinating] = useState(false)
   const [bargain, setBargain] = useState<Bargain | null>(null)
+  const [roilStrike, setRoilStrike] = useState<{ lat: number; lng: number; key: number } | null>(null)
+  const [roilFlash, setRoilFlash] = useState(false)
+  const roilKey = useRef(0)
+  const roilFlashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const hallucinateTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -136,9 +140,15 @@ export default function App() {
       ? `The Roil breaks over ${where} — the wards hold, ${s.damage.toLocaleString()} still lost`
       : `The Roil falls on ${where} — ${s.damage.toLocaleString()} lost`
     addToast(msg, 'roil')
-    setPulsingCellId(s.targetCellId)
-    setTimeout(() => setPulsingCellId(null), 1500)
+    // The Roil owns its own visual: a violet beam + shockwave on the globe and a
+    // brief flash of the void, distinct from the teal pulse of a rite.
+    setRoilStrike({ lat: s.toLat, lng: s.toLng, key: ++roilKey.current })
+    setRoilFlash(true)
+    clearTimeout(roilFlashTimer.current)
+    roilFlashTimer.current = setTimeout(() => setRoilFlash(false), 480)
   }, [addToast])
+
+  useEffect(() => () => clearTimeout(roilFlashTimer.current), [])
 
   const onRevelation = useCallback((data: RevelationEarned) => {
     let msg = `Revelation: ${data.revelationName}`
@@ -321,6 +331,7 @@ export default function App() {
           onCellClick={handleCellSelect}
           selectedCellId={selectedCell?.id ?? null}
           pulsingCellId={pulsingCellId}
+          roilStrike={roilStrike}
           paused={!!targetingRite}
         />
       </ErrorBoundary>
@@ -336,6 +347,17 @@ export default function App() {
           }}
         />
       )}
+
+      {/* The Roil's blow registers as a flash of the indifferent void. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: 6, pointerEvents: 'none',
+          background: 'radial-gradient(circle at 50% 42%, rgba(168,120,224,0.28), rgba(124,107,176,0.12) 38%, transparent 68%)',
+          opacity: roilFlash ? 1 : 0,
+          transition: roilFlash ? 'opacity 0.08s ease-out' : 'opacity 0.42s ease-in',
+        }}
+      />
 
       <div className="logo">FHTAGN</div>
 

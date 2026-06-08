@@ -13,13 +13,19 @@ interface GlobeProps {
   onCellClick: (cell: Cell) => void
   selectedCellId: string | null
   pulsingCellId: string | null
+  roilStrike?: { lat: number; lng: number; key: number } | null  // the Roil falls here
   paused?: boolean   // stop auto-rotation (e.g. while aiming a rite)
 }
 
-export default function Globe({ cells, userCellId, onCellClick, selectedCellId, pulsingCellId, paused }: GlobeProps) {
+interface Beam { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; born: number }
+
+export default function Globe({ cells, userCellId, onCellClick, selectedCellId, pulsingCellId, roilStrike, paused }: GlobeProps) {
   const globeRef = useRef<any>(null)
   const [polygons, setPolygons] = useState<any[]>([])
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight })
+  // Active Roil shockwaves (violet rings) and the descending beams that drive them.
+  const [roilRings, setRoilRings] = useState<{ lat: number; lng: number; id: number }[]>([])
+  const beamsRef = useRef<Beam[]>([])
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>
@@ -72,6 +78,46 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
     globeRef.current.pointOfView({ ...pov, altitude }, 400)
   }, [])
 
+  // Azathoth's strike: a tapering violet column lances down from the void onto the
+  // cell, wide at the sky and narrowing to the point of impact. Added straight to
+  // the scene and animated in the render loop above (react-globe.gl has no beam layer).
+  const spawnBeam = useCallback((lat: number, lng: number) => {
+    const globe = globeRef.current
+    if (!globe?.getCoords || !globe.scene) return
+    const scene = globe.scene()
+    if (!scene) return
+    const b = globe.getCoords(lat, lng, 0.004)
+    const t = globe.getCoords(lat, lng, 0.62)
+    const baseV = new THREE.Vector3(b.x, b.y, b.z)
+    const topV = new THREE.Vector3(t.x, t.y, t.z)
+    const height = baseV.distanceTo(topV)
+    const dir = topV.clone().sub(baseV).normalize()
+    const geo = new THREE.CylinderGeometry(2.6, 0.5, height, 18, 1, true)  // wide at the void
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0xa878e0),
+      transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide,
+    })
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.position.copy(baseV.clone().add(topV).multiplyScalar(0.5))
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
+    scene.add(mesh)
+    beamsRef.current.push({ mesh, mat, born: Date.now() })
+  }, [])
+
+  // When the Roil falls, lance a beam down and ripple a violet shockwave out;
+  // the ring clears itself once it has propagated.
+  useEffect(() => {
+    if (!roilStrike) return
+    spawnBeam(roilStrike.lat, roilStrike.lng)
+    const ring = { lat: roilStrike.lat, lng: roilStrike.lng, id: roilStrike.key }
+    setRoilRings(prev => [...prev, ring])
+    const timer = setTimeout(() => {
+      setRoilRings(prev => prev.filter(r => r.id !== ring.id))
+    }, 1400)
+    return () => clearTimeout(timer)
+  }, [roilStrike?.key, spawnBeam])
+
   // Abyssal void globe: a dark sphere with a slow teal pulse, no Earth texture.
   useEffect(() => {
     if (!globeRef.current) return
@@ -117,6 +163,27 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
           }
         })
         ;(scene as any).__glowApplied = true
+      }
+
+      // The Roil's reach: fade each descending beam, slam it home, then retire it.
+      if (scene) {
+        const beams = beamsRef.current
+        for (let i = beams.length - 1; i >= 0; i--) {
+          const b = beams[i]
+          const age = (Date.now() - b.born) / 1000
+          if (age >= 1) {
+            scene.remove(b.mesh)
+            b.mesh.geometry.dispose()
+            b.mat.dispose()
+            beams.splice(i, 1)
+            continue
+          }
+          const k = age            // 0 → 1 over one second
+          const flicker = 0.7 + 0.3 * Math.abs(Math.sin(age * 42))
+          b.mat.opacity = 0.85 * (1 - k) * flicker
+          const slamY = k < 0.15 ? 1.3 - (k / 0.15) * 0.3 : 1
+          b.mesh.scale.set(1 + k * 0.5, slamY, 1 + k * 0.5)
+        }
       }
 
       frameId = requestAnimationFrame(animate)
@@ -187,11 +254,14 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
   const cellsRef = useRef(cells)
   cellsRef.current = cells
   const ringsData = useMemo(() => {
-    if (!pulsingCellId) return []
-    const cell = cellsRef.current.find(c => c.id === pulsingCellId)
-    if (!cell) return []
-    return [{ lat: cell.lat, lng: cell.lng }]
-  }, [pulsingCellId])
+    const out: { lat: number; lng: number; kind: 'pulse' | 'roil' }[] = []
+    if (pulsingCellId) {
+      const cell = cellsRef.current.find(c => c.id === pulsingCellId)
+      if (cell) out.push({ lat: cell.lat, lng: cell.lng, kind: 'pulse' })
+    }
+    for (const r of roilRings) out.push({ lat: r.lat, lng: r.lng, kind: 'roil' })
+    return out
+  }, [pulsingCellId, roilRings])
 
   return (
     <>
@@ -216,10 +286,12 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
       ringsData={ringsData}
       ringLat="lat"
       ringLng="lng"
-      ringColor={() => '#46e6cd'}
-      ringMaxRadius={3}
-      ringPropagationSpeed={2}
-      ringRepeatPeriod={800}
+      // The Roil rings ride the same layer as the teal pulse, but ripple faster,
+      // wider, and in Azathoth's violet, fading as they spread.
+      ringColor={(d: any) => (d.kind === 'roil' ? (t: number) => `rgba(168, 120, 224, ${(1 - t) * 0.9})` : '#46e6cd')}
+      ringMaxRadius={(d: any) => (d.kind === 'roil' ? 7 : 3)}
+      ringPropagationSpeed={(d: any) => (d.kind === 'roil' ? 6 : 2)}
+      ringRepeatPeriod={(d: any) => (d.kind === 'roil' ? 280 : 800)}
       atmosphereColor="#2bbfa8"
       atmosphereAltitude={0.22}
       animateIn={true}
