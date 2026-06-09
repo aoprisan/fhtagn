@@ -268,7 +268,7 @@ exactly as the prototype derives achievements. Adapt thresholds; no new tables.
    low-sanity risk effects + hallucinations. **Prototype balance here first.**
 5. **The Roil:** cosmic-tick worker + `roil_strike` + per-cell wards. ✅ *(done in UI-first build)*
 6. **Spread/conversion + Awakening:** conversion mechanics, Reach/Lore leaderboards,
-   Great Rite endgame + season reseed.
+   Great Rite endgame + season reseed. ✅ *(done in UI-first build)*
 7. **PWA + Stripe:** installable shell, web push, subscription billing & downgrade.
 
 ---

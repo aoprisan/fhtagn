@@ -27,6 +27,8 @@ export interface Cell {
   riteStockpile: number     // was missileStockpile
   patronId: PatronId | null
   wardLevel: number         // [0,100] ritual warding vs the Roil; decays, must be tended
+  reach: number             // cells this cell has spread to / converted (spec §9 Reach)
+  lore: number              // forbidden lore uncovered (spec §9 Lore)
 }
 
 export interface CellDetail extends Cell {
@@ -164,6 +166,17 @@ export interface CellUpdate {
   contributorCount: number
   peakDevotion: number
   wardLevel?: number
+  reach?: number
+  lore?: number
+}
+
+/** A cell flips to a new patron — spread/conversion (spec §9). */
+export interface CellConverted {
+  cellId: string
+  cellName: string
+  fromPatronId: PatronId | null
+  toPatronId: PatronId
+  byCellName: string
 }
 
 export interface CellChant {
@@ -202,6 +215,51 @@ export interface SanityUpdate {
   hallucination?: boolean   // client-side dread only; no state change
 }
 
+// ---- The Awakening: endgame / seasons (spec §9) ----
+
+/** Telegraph of how near the world is to the stars coming right (spec §10). */
+export interface AwakeningProgress {
+  progress: number          // [0,1] toward alignment
+  aligned: boolean          // the stars ARE right — the Great Rite may be performed
+  leaderCellName: string
+  leaderPatronId: PatronId | null
+}
+
+/** A cult completes the Great Rite: its patron wakes, the world reseeds (spec §9). */
+export interface AwakeningTriggered {
+  patronId: PatronId
+  cellName: string
+  cellId: string
+  season: number            // the new cycle just begun
+  byYou: boolean            // you woke your god, or a rival beat you to it
+}
+
+/** Snapshot of the endgame, read on demand for the Awakening UI. */
+export interface AwakeningState {
+  progress: number
+  aligned: boolean
+  goal: number
+  season: number
+  leaderCellName: string
+  leaderPatronId: PatronId | null
+  homeScore: number         // your cell's Great Work
+  homeQualifies: boolean    // your cell may perform the Great Rite now
+}
+
+/** Result of spreading the word to a cell. */
+export interface ConvertResult {
+  cellName: string
+  toPatronId: PatronId
+  reach: number             // your cell's reach after this conversion
+}
+
+/** Result of performing the Great Rite. */
+export interface GreatRiteResult {
+  patronId: PatronId
+  cellName: string
+  season: number
+}
+
 export type GameEvent =
   | { type: 'cell_update'; data: CellUpdate }
   | { type: 'cell_chant'; data: CellChant }
@@ -212,5 +270,8 @@ export type GameEvent =
   | { type: 'sanity_update'; data: SanityUpdate }
   | { type: 'bargain_offer'; data: { bargain: Bargain } }
   | { type: 'bargain_sprung'; data: BargainSprung }
+  | { type: 'cell_converted'; data: CellConverted }
+  | { type: 'awakening_progress'; data: AwakeningProgress }
+  | { type: 'awakening_triggered'; data: AwakeningTriggered }
 
 export type GameEventType = GameEvent['type']

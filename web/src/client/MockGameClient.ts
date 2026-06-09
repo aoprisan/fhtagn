@@ -1,11 +1,16 @@
 import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats, Contributor,
   LeaderboardKind, PatronId, GameEvent, RiteFamily, Bargain, BargainCatch, BargainOutcome,
+  ConvertResult, AwakeningState, GreatRiteResult,
 } from '../types'
 import { GameClient, EventBus, ConnectionState, InvokeResult } from './GameClient'
 import { SEED_CELLS } from '../game/seedCells'
 import { PATRONS, RITE_BY_TYPE, RITE_THRESHOLDS, REVELATION_RITE_POOL } from '../game/catalog'
 import { rollBargain, perTickSpringChance } from '../game/bargains'
+import {
+  canConvert, greatWorkScore, worldAlignment,
+  SPREAD_RANGE_KM, SPREAD_SEED_RETENTION, LORE_PER_CONVERSION,
+} from '../game/awakening'
 import { haversineKm } from '../game/geo'
 
 const SAVE_KEY = 'fhtagn.save.v1'
@@ -37,6 +42,7 @@ interface SaveState {
   pact: Pact | null
   bargain?: Bargain | null
   pendingCatches?: PendingCatch[]
+  season?: number
 }
 
 function uid(): string {
@@ -71,6 +77,9 @@ function seedCells(): Cell[] {
       patronId: patronIds[(h + i) % patronIds.length] as PatronId,
       // A scattering of cells start partly warded, so the world shows the practice.
       wardLevel: (h % 5 === 0) ? 20 + (h % 30) : 0,
+      // Some spread + lore already, so the Reach/Lore boards have shape from frame 1.
+      reach: h % 7,
+      lore: h % 11,
     }
   })
 }
@@ -84,17 +93,23 @@ export class MockGameClient implements GameClient {
   private bargain: Bargain | null
   private pendingCatches: PendingCatch[]
   private offerCooldown = 4          // ticks before the Tempter may call unbidden
+  private season: number
+  private lastAwakeningProgress = 0  // throttles the awakening_progress telegraph
+  private wasAligned = false
   private timer: ReturnType<typeof setInterval> | null = null
   private savePending = false
 
   constructor() {
     const loaded = this.load()
-    this.cells = (loaded?.cells ?? seedCells()).map(c => ({ ...c, wardLevel: c.wardLevel ?? 0 }))
+    this.cells = (loaded?.cells ?? seedCells()).map(c => ({
+      ...c, wardLevel: c.wardLevel ?? 0, reach: c.reach ?? 0, lore: c.lore ?? 0,
+    }))
     this.cultist = loaded?.cultist ?? null
     this.rites = loaded?.rites ?? []
     this.pactRec = loaded?.pact ?? null
     this.bargain = loaded?.bargain ?? null
     this.pendingCatches = loaded?.pendingCatches ?? []
+    this.season = loaded?.season ?? 1
     this.startTicking()
   }
 
@@ -114,7 +129,7 @@ export class MockGameClient implements GameClient {
       try {
         const state: SaveState = {
           cells: this.cells, cultist: this.cultist, rites: this.rites, pact: this.pactRec,
-          bargain: this.bargain, pendingCatches: this.pendingCatches,
+          bargain: this.bargain, pendingCatches: this.pendingCatches, season: this.season,
         }
         localStorage.setItem(SAVE_KEY, JSON.stringify(state))
       } catch { /* quota / private mode — best effort */ }
@@ -188,6 +203,30 @@ export class MockGameClient implements GameClient {
       }
     }
 
+    // Bot spread: a cell carries its faith into a nearby uncommitted or weaker
+    // cell (spec §9). Reach and Lore boards evolve, and the world creeps toward
+    // the Awakening — so the endgame arrives whether or not the player pushes it.
+    if (Math.random() < 0.14) {
+      const src = this.cells[Math.floor(Math.random() * this.cells.length)]
+      if (src && src.id !== this.cultist?.cellId && src.devotion > 2_000) {
+        const target = this.pickSpreadTarget(src)
+        if (target) {
+          const fromPatron = target.patronId
+          target.patronId = src.patronId
+          target.devotion += Math.round(src.devotion * 0.03)
+          if (target.devotion > target.peakDevotion) target.peakDevotion = target.devotion
+          src.reach += 1
+          src.lore += 1
+          this.emit({ type: 'cell_converted', data: {
+            cellId: target.id, cellName: target.name, fromPatronId: fromPatron,
+            toPatronId: src.patronId as PatronId, byCellName: src.name,
+          } })
+          this.emit({ type: 'cell_update', data: cellUpdate(src) })
+          this.emit({ type: 'cell_update', data: cellUpdate(target) })
+        }
+      }
+    }
+
     // Low sanity: phantom incoming the player cannot distinguish from the real
     // thing — pure client-side dread, NO state change (spec §7).
     if (this.cultist && this.cultist.sanity < 30 && Math.random() < 0.3) {
@@ -207,6 +246,7 @@ export class MockGameClient implements GameClient {
     }
 
     this.tempterTick()
+    this.awakeningTick()
     this.save()
   }
 
@@ -315,9 +355,17 @@ export class MockGameClient implements GameClient {
     return { ...c, topContributors: mockContributors(c), dailyChangePercent: mockDaily(c) }
   }
 
-  async leaderboard(_kind: LeaderboardKind, limit = 10): Promise<Cell[]> {
-    // v1: Reach/Lore reuse the devotion ordering; true multi-board ranking is a later phase.
-    return [...this.cells].sort((a, b) => b.devotion - a.devotion).slice(0, limit).map(c => ({ ...c }))
+  async leaderboard(kind: LeaderboardKind, limit = 10): Promise<Cell[]> {
+    // Three distinct boards (spec §9): Devotion ranks raw faith; Reach ranks the
+    // spread of a cult; Lore ranks the forbidden knowledge it has uncovered. Ties
+    // fall back to devotion so the order is always stable.
+    const key = kind === 'reach' ? (c: Cell) => c.reach
+      : kind === 'lore' ? (c: Cell) => c.lore
+      : (c: Cell) => c.devotion
+    return [...this.cells]
+      .sort((a, b) => (key(b) - key(a)) || (b.devotion - a.devotion))
+      .slice(0, limit)
+      .map(c => ({ ...c }))
   }
 
   async stats(): Promise<WorldStats> {
@@ -396,6 +444,8 @@ export class MockGameClient implements GameClient {
     rite.targetCellId = targetCellId
     rite.devotionClaimed = damage
     if (from.riteStockpile > 0) from.riteStockpile -= 1
+    // Wielding eldritch power uncovers lore — the home cell's Great Work deepens.
+    from.lore += rite.tier
 
     // Power has a price: invoking eldritch rites costs sanity, scaled by tier.
     const sanityCost = rite.tier === 3 ? 12 : rite.tier === 2 ? 7 : 3
@@ -409,6 +459,7 @@ export class MockGameClient implements GameClient {
         fromLat: from.lat, fromLng: from.lng, toLat: to.lat, toLng: to.lng,
       },
     })
+    this.emit({ type: 'cell_update', data: cellUpdate(from) })
     this.emit({ type: 'cell_update', data: cellUpdate(to) })
     this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
     this.save()
@@ -489,6 +540,128 @@ export class MockGameClient implements GameClient {
     this.save()
   }
 
+  // ---------- spread, conversion & the Awakening (spec §9) ----------
+  // A weaker, uncommitted, or rival-but-overpowered cell within range — the
+  // natural prey for a bot cell's spread. Samples a handful to stay cheap.
+  private pickSpreadTarget(src: Cell): Cell | undefined {
+    for (let tries = 0; tries < 6; tries++) {
+      const c = this.cells[Math.floor(Math.random() * this.cells.length)]
+      if (!c || c.id === src.id || c.id === this.cultist?.cellId) continue
+      if (c.patronId === src.patronId) continue
+      if (c.patronId !== null && c.devotion >= src.devotion) continue
+      if (haversineKm(src.lat, src.lng, c.lat, c.lng) > SPREAD_RANGE_KM) continue
+      return c
+    }
+    return undefined
+  }
+
+  async convert(targetCellId: string): Promise<ConvertResult> {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness' || !cu.patronId) throw new Error('only the sworn may spread')
+    const home = this.cell(cu.cellId)
+    const target = this.cell(targetCellId)
+    if (!home || !target) throw new Error('unknown cell')
+
+    const check = canConvert(home, target, cu.patronId)
+    if (!check.ok) throw new Error(check.reason ?? 'the word will not carry there')
+    const cost = check.cost ?? 0
+
+    const fromPatron = target.patronId
+    home.devotion = Math.max(0, home.devotion - cost)
+    target.patronId = cu.patronId
+    target.devotion += Math.round(cost * SPREAD_SEED_RETENTION)
+    if (target.devotion > target.peakDevotion) target.peakDevotion = target.devotion
+    target.contributorCount += 1
+    home.reach += 1
+    home.lore += LORE_PER_CONVERSION
+    // Spreading the word is fervent, lucid work — a small balm to the mind.
+    cu.sanity = Math.min(100, cu.sanity + 1)
+
+    this.emit({ type: 'cell_converted', data: {
+      cellId: target.id, cellName: target.name, fromPatronId: fromPatron,
+      toPatronId: cu.patronId, byCellName: home.name,
+    } })
+    this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    this.emit({ type: 'cell_update', data: cellUpdate(target) })
+    this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
+    this.save()
+    return { cellName: target.name, toPatronId: cu.patronId, reach: home.reach }
+  }
+
+  async awakeningState(): Promise<AwakeningState> {
+    const view = worldAlignment(this.cells)
+    const home = this.cultist ? this.cell(this.cultist.cellId) : null
+    const homeScore = home ? greatWorkScore(home) : 0
+    return {
+      progress: view.progress, aligned: view.aligned, goal: view.goal, season: this.season,
+      leaderCellName: view.leader?.name ?? '', leaderPatronId: view.leader?.patronId ?? null,
+      homeScore, homeQualifies: homeScore >= view.goal,
+    }
+  }
+
+  async greatRite(): Promise<GreatRiteResult> {
+    const cu = this.cultist
+    if (!cu) throw new Error('not a cultist')
+    const home = this.cell(cu.cellId)
+    if (!home) throw new Error('no home cell')
+    const view = worldAlignment(this.cells)
+    if (!view.aligned) throw new Error('the stars are not yet right')
+    if (greatWorkScore(home) < view.goal) throw new Error('your cell is not ready for the Great Rite')
+    const patronId = (home.patronId ?? cu.patronId) as PatronId
+    const cellName = home.name
+    this.triggerAwakening(home, true)
+    return { patronId, cellName, season: this.season }
+  }
+
+  // Telegraph the approach of the Awakening (throttled), then — once the stars
+  // are right — let the foremost RIVAL cell race to the Great Rite. The player
+  // must beat them to it via greatRite(); dawdling lets a rival wake their god
+  // and reseed the world (spec §9: the reason to push past safe play).
+  private awakeningTick(): void {
+    const view = worldAlignment(this.cells)
+    if (Math.abs(view.progress - this.lastAwakeningProgress) >= 0.02 || view.aligned !== this.wasAligned) {
+      this.lastAwakeningProgress = view.progress
+      this.wasAligned = view.aligned
+      this.emit({ type: 'awakening_progress', data: {
+        progress: view.progress, aligned: view.aligned,
+        leaderCellName: view.leader?.name ?? '', leaderPatronId: view.leader?.patronId ?? null,
+      } })
+    }
+    if (view.aligned && view.leader && view.leader.id !== this.cultist?.cellId && Math.random() < 0.06) {
+      this.triggerAwakening(view.leader, false)
+    }
+  }
+
+  private triggerAwakening(cell: Cell, byYou: boolean): void {
+    const patronId = (cell.patronId ?? 'cthulhu') as PatronId
+    this.season += 1
+    this.emit({ type: 'awakening_triggered', data: {
+      patronId, cellName: cell.name, cellId: cell.id, season: this.season, byYou,
+    } })
+    this.reseed()
+  }
+
+  // The world unmakes and begins anew. The cultist endures — patron, sanity,
+  // lifetime devotion and known rites persist — but the map resets to seed and a
+  // new cycle begins (spec §9: season loop).
+  private reseed(): void {
+    const cu = this.cultist
+    this.cells = seedCells()
+    if (cu) {
+      const home = this.cell(cu.cellId)
+      if (home) {
+        if (!home.patronId) home.patronId = cu.patronId
+        home.contributorCount += 1
+      }
+    }
+    this.bargain = null
+    this.pendingCatches = []
+    this.lastAwakeningProgress = 0
+    this.wasAligned = false
+    this.offerCooldown = 6
+    this.save()
+  }
+
   // ---------- GameClient: bargains ----------
   async currentBargain(): Promise<Bargain | null> {
     return this.bargain ? { ...this.bargain } : null
@@ -513,6 +686,10 @@ export class MockGameClient implements GameClient {
     if (b.grantDevotion && home) {
       home.devotion += b.grantDevotion
       if (home.devotion > home.peakDevotion) home.peakDevotion = home.devotion
+    }
+    // Forbidden knowledge passes with every pact — a tome deepens it most.
+    if (home) {
+      home.lore += b.kind === 'tome' ? 6 : 3
       this.emit({ type: 'cell_update', data: cellUpdate(home) })
     }
     if (b.grantSanity) cu.sanity = Math.min(100, cu.sanity + b.grantSanity)
@@ -600,7 +777,7 @@ export class MockGameClient implements GameClient {
 function cellUpdate(c: Cell) {
   return {
     cellId: c.id, devotion: c.devotion, contributorCount: c.contributorCount,
-    peakDevotion: c.peakDevotion, wardLevel: c.wardLevel,
+    peakDevotion: c.peakDevotion, wardLevel: c.wardLevel, reach: c.reach, lore: c.lore,
   }
 }
 

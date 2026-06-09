@@ -14,16 +14,28 @@ import ErrorBoundary from './components/ErrorBoundary'
 import SigilCanvas from './components/SigilCanvas'
 import SanityMeter from './components/SanityMeter'
 import TempterCard from './components/TempterCard'
+import AwakeningPanel from './components/AwakeningPanel'
 import PwaPrompts from './components/PwaPrompts'
 import { game } from './client'
+import { PATRON_BY_ID } from './game/catalog'
+import { SPREAD_RANGE_KM } from './game/awakening'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
 import type {
   Cell, Cultist, CellUpdate, RiteStrike, RoilStrike,
   RevelationEarned, WorldStats, Rite, Bargain, BargainSprung,
+  CellConverted, AwakeningState, AwakeningTriggered,
 } from './types'
 
 const LEADERBOARD_REFRESH_MS = 3000
+
+// The Great Rite is traced as the Unmaking (the cataclysm sigil) — the most
+// ornate sigil, fitting the culmination of a whole cycle (spec §4, §9).
+const GREAT_RITE_SIGIL: Rite = {
+  id: 'great-rite', cultistId: '', riteType: 'The Great Rite', family: 'cataclysm',
+  tier: 3, source: 'awakening', rangeKm: 0, damageLower: 0, damageUpper: 0,
+  invoked: false, devotionClaimed: 0,
+}
 
 export default function App() {
   const [cells, setCells] = useState<Cell[]>([])
@@ -40,6 +52,12 @@ export default function App() {
   const [sanity, setSanity] = useState(100)
   const [hallucinating, setHallucinating] = useState(false)
   const [bargain, setBargain] = useState<Bargain | null>(null)
+  const [awakening, setAwakening] = useState<AwakeningState | null>(null)
+  const [lbVersion, setLbVersion] = useState(0)
+  const [spreading, setSpreading] = useState(false)
+  const [greatRiteTracing, setGreatRiteTracing] = useState(false)
+  const [awakeningFlash, setAwakeningFlash] = useState(false)
+  const awakeningFlashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [roilStrike, setRoilStrike] = useState<{ lat: number; lng: number; key: number } | null>(null)
   const [roilFlash, setRoilFlash] = useState(false)
   const roilKey = useRef(0)
@@ -62,12 +80,16 @@ export default function App() {
 
   // Load the world + any saved cultist
   useEffect(() => {
-    Promise.all([game.listCells(), game.me(), game.leaderboard('devotion', 10), game.stats(), game.currentBargain()])
-      .then(([cellsData, cultistData, leaderboardData, statsData, standingBargain]) => {
+    Promise.all([
+      game.listCells(), game.me(), game.leaderboard('devotion', 10), game.stats(),
+      game.currentBargain(), game.awakeningState(),
+    ])
+      .then(([cellsData, cultistData, leaderboardData, statsData, standingBargain, awakeningData]) => {
         setCells(cellsData)
         setLeaderboard(leaderboardData)
         setWorldStats(statsData)
         setBargain(standingBargain)
+        setAwakening(awakeningData)
         if (cultistData) {
           setCultist(cultistData)
           setSanity(cultistData.sanity)
@@ -88,6 +110,8 @@ export default function App() {
     leaderboardTimer.current = setTimeout(() => {
       game.leaderboard('devotion', 10).then(setLeaderboard).catch(() => {})
       game.stats().then(setWorldStats).catch(() => {})
+      game.awakeningState().then(setAwakening).catch(() => {})
+      setLbVersion(v => v + 1)   // nudge the Leaderboard to refetch its active board
       leaderboardTimer.current = undefined
     }, LEADERBOARD_REFRESH_MS)
   }, [])
@@ -101,6 +125,8 @@ export default function App() {
       contributorCount: update.contributorCount,
       peakDevotion: update.peakDevotion,
       wardLevel: update.wardLevel ?? c.wardLevel,
+      reach: update.reach ?? c.reach,
+      lore: update.lore ?? c.lore,
     })
     setCells(prev => prev.map(c => (c.id === update.cellId ? merge(c) : c)))
     setSelectedCell(prev => (prev && prev.id === update.cellId ? merge(prev) : prev))
@@ -178,9 +204,58 @@ export default function App() {
     addToast(s.message, s.sprung ? 'rite_incoming' : 'bargain')
   }, [addToast])
 
+  const onCellConverted = useCallback((c: CellConverted) => {
+    // Only surface conversions that touch the player — yours, or one of yours flipped away.
+    if (cultist && c.byCellName && c.toPatronId === cultist.patronId) {
+      const verb = c.fromPatronId ? 'flips to' : 'takes up'
+      addToast(`${c.cellName} ${verb} your patron — the word spreads`, 'convert')
+    }
+    refreshLeaderboard()
+  }, [cultist, addToast, refreshLeaderboard])
+
+  const onAwakeningProgress = useCallback(() => {
+    // The telegraph fires only on meaningful shifts; pull the full state for the panel.
+    game.awakeningState().then(setAwakening).catch(() => {})
+  }, [])
+
+  const reloadWorld = useCallback(() => {
+    Promise.all([game.listCells(), game.me(), game.leaderboard('devotion', 10), game.stats(), game.awakeningState()])
+      .then(([cellsData, cultistData, lb, statsData, awakeningData]) => {
+        setCells(cellsData)
+        setLeaderboard(lb)
+        setWorldStats(statsData)
+        setAwakening(awakeningData)
+        setLbVersion(v => v + 1)
+        if (cultistData) {
+          setCultist(cultistData)
+          const home = cellsData.find(c => c.id === cultistData.cellId)
+          setSelectedCell(home ?? null)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const onAwakeningTriggered = useCallback((a: AwakeningTriggered) => {
+    const patron = PATRON_BY_ID[a.patronId]
+    addToast(
+      a.byYou
+        ? `THE GREAT RITE IS COMPLETE. ${patron.name} wakes at your call — the world unmakes. Cycle ${a.season} begins.`
+        : `${a.cellName} completes the Great Rite. ${patron.name} wakes, and the world is remade. Cycle ${a.season} begins.`,
+      'awakening',
+    )
+    // The world reseeds: clear any in-flight targeting and reload from the fresh map.
+    setTargetingRite(null); setSpreading(false); setPendingCast(null); setGreatRiteTracing(false)
+    setAwakeningFlash(true)
+    clearTimeout(awakeningFlashTimer.current)
+    awakeningFlashTimer.current = setTimeout(() => setAwakeningFlash(false), 1100)
+    reloadWorld()
+  }, [addToast, reloadWorld])
+
+  useEffect(() => () => clearTimeout(awakeningFlashTimer.current), [])
+
   const { connectionState } = useGameClient({
     onCellUpdate, onRiteStrike, onRiteIncoming, onRoil, onRevelation, onSanity,
-    onBargainOffer, onBargainSprung,
+    onBargainOffer, onBargainSprung, onCellConverted, onAwakeningProgress, onAwakeningTriggered,
   })
 
   const handleLucidity = useCallback(() => game.riteOfLucidity(), [])
@@ -237,14 +312,43 @@ export default function App() {
       setTargetingRite(null)
       return
     }
+    if (spreading) {
+      // Target chosen for conversion — carry the word there at once (no sigil; spread is core, low-friction).
+      setSpreading(false)
+      game.convert(cell.id)
+        .then(r => addToast(`The word reaches ${r.cellName} — it is yours. Your reach is now ${r.reach}.`, 'convert'))
+        .catch(e => addToast(`The word does not carry: ${e instanceof Error ? e.message : 'unknown'}`, 'convert'))
+      return
+    }
     setSelectedCell(cell)
     // On phones, surface the cell's grimoire page when a city is chosen.
     if (window.matchMedia('(max-width: 768px)').matches) setActiveTab('cell')
-  }, [targetingRite])
+  }, [targetingRite, spreading, addToast])
 
   const handleInvokeRite = useCallback((rite: Rite) => {
     setTargetingRite(rite)
     addToast(`Choose a cell within ${rite.rangeKm}km to receive the ${rite.riteType}`, 'rite')
+  }, [addToast])
+
+  const handleSpread = useCallback(() => {
+    setTargetingRite(null)
+    setSpreading(true)
+    addToast('Choose a nearby cell to carry the word to — the uncommitted, or a rival you overpower.', 'convert')
+  }, [addToast])
+
+  const handleGreatRite = useCallback(() => {
+    if (!awakening?.aligned || !awakening.homeQualifies) return
+    setGreatRiteTracing(true)
+  }, [awakening])
+
+  const castGreatRite = useCallback(async () => {
+    setGreatRiteTracing(false)
+    try {
+      await game.greatRite()
+      // The awakening_triggered event drives the toast, flash, and world reseed.
+    } catch (e) {
+      addToast(`The Great Rite falters: ${e instanceof Error ? e.message : 'unknown'}`, 'awakening')
+    }
   }, [addToast])
 
   const handleRegistered = useCallback((newCultist: Cultist) => {
@@ -291,12 +395,14 @@ export default function App() {
 
   // Secondary panels — rendered around the edges on desktop, or inside the
   // mobile grimoire sheet (one at a time, chosen from the rune dock).
+  const isHomeSelected = cultist ? selectedCell?.id === cultist.cellId : false
   const infoPanelEl = selectedCell && (
     <InfoPanel
       cell={selectedCell}
-      isHome={cultist ? selectedCell.id === cultist.cellId : false}
+      isHome={isHomeSelected}
       userDevotion={cultist && selectedCell.id === cultist.cellId ? personalChants : undefined}
       rank={selectedRank}
+      onSpread={isHomeSelected && tier !== 'witness' ? handleSpread : undefined}
     />
   )
   const cultistPanelEl = cultist && (
@@ -307,7 +413,10 @@ export default function App() {
   const sanityPanelEl = cultist && (
     <SanityMeter sanity={sanity} hallucinating={hallucinating} onLucidity={handleLucidity} onCourt={handleCourt} />
   )
-  const leaderboardEl = <Leaderboard cells={leaderboard} />
+  const awakeningPanelEl = (
+    <AwakeningPanel state={awakening} canAct={!!cultist && tier !== 'witness'} onGreatRite={handleGreatRite} />
+  )
+  const leaderboardEl = <Leaderboard version={lbVersion} />
 
   const dockTabs = [
     infoPanelEl && { key: 'cell', glyph: '◈', cap: 'Cell', el: infoPanelEl },
@@ -315,6 +424,7 @@ export default function App() {
     cultist && tier !== 'witness' && { key: 'rites', glyph: '✶', cap: 'Rites', el: ritePanelEl },
     sanityPanelEl && { key: 'mind', glyph: '☾', cap: 'Mind', el: sanityPanelEl },
     cultist && tier !== 'witness' && { key: 'pact', glyph: '⛧', cap: 'Pact', el: pactPanelEl },
+    { key: 'awaken', glyph: '✦', cap: 'Awaken', el: awakeningPanelEl },
     { key: 'ranks', glyph: '♆', cap: 'Ranks', el: leaderboardEl },
   ].filter(Boolean) as { key: string; glyph: string; cap: string; el: React.ReactNode }[]
 
@@ -332,7 +442,7 @@ export default function App() {
           selectedCellId={selectedCell?.id ?? null}
           pulsingCellId={pulsingCellId}
           roilStrike={roilStrike}
-          paused={!!targetingRite}
+          paused={!!targetingRite || spreading}
         />
       </ErrorBoundary>
 
@@ -359,9 +469,20 @@ export default function App() {
         }}
       />
 
+      {/* The Awakening: a god wakes — a deep gold burst swallows the world before it reseeds. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: 7, pointerEvents: 'none',
+          background: 'radial-gradient(circle at 50% 45%, rgba(216,169,58,0.5), rgba(207,53,80,0.22) 42%, transparent 72%)',
+          opacity: awakeningFlash ? 1 : 0,
+          transition: awakeningFlash ? 'opacity 0.12s ease-out' : 'opacity 0.9s ease-in',
+        }}
+      />
+
       <div className="logo">FHTAGN</div>
 
-      <WorldPanel stats={worldStats} totalDevotion={totalDevotion} />
+      <WorldPanel stats={worldStats} totalDevotion={totalDevotion} awakening={awakening} />
 
       <ToastSystem toasts={toasts} />
 
@@ -376,6 +497,7 @@ export default function App() {
           {ritePanelEl}
           {pactPanelEl}
           {sanityPanelEl}
+          {awakeningPanelEl}
         </>
       )}
 
@@ -429,6 +551,15 @@ export default function App() {
         />
       )}
 
+      {greatRiteTracing && (
+        <SigilCanvas
+          rite={GREAT_RITE_SIGIL}
+          targetCellName={userCell?.name ?? 'your cell'}
+          onMatch={castGreatRite}
+          onCancel={() => setGreatRiteTracing(false)}
+        />
+      )}
+
       {targetingRite && (
         <div className="targeting-overlay" style={{
           position: 'absolute', bottom: 160, left: '50%', transform: 'translateX(-50%)',
@@ -439,6 +570,26 @@ export default function App() {
           <span>Tracing: {targetingRite.riteType} ({targetingRite.rangeKm}km)</span>
           <button
             onClick={() => setTargetingRite(null)}
+            style={{
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 4, padding: '2px 8px', color: 'var(--text)', cursor: 'pointer', fontSize: 11,
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {spreading && (
+        <div className="targeting-overlay" style={{
+          position: 'absolute', bottom: 160, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 50, background: 'rgba(43, 191, 168, 0.18)', border: '1px solid rgba(43, 191, 168, 0.45)',
+          borderRadius: 8, padding: '8px 16px', fontSize: 12, color: 'var(--teal)',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span>Spreading the Word ({SPREAD_RANGE_KM}km)</span>
+          <button
+            onClick={() => setSpreading(false)}
             style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: 4, padding: '2px 8px', color: 'var(--text)', cursor: 'pointer', fontSize: 11,

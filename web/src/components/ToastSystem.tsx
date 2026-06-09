@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 
-export type ToastType = 'chant' | 'revelation' | 'rite' | 'rite_incoming' | 'roil' | 'bargain'
+export type ToastType = 'chant' | 'revelation' | 'rite' | 'rite_incoming' | 'roil' | 'bargain' | 'convert' | 'awakening'
 
 export interface Toast {
   id: number
@@ -66,6 +66,8 @@ function getToastBg(type: ToastType): string {
     case 'rite_incoming': return 'rgba(201, 48, 74, 0.22)'
     case 'roil': return 'rgba(120, 90, 160, 0.2)'
     case 'bargain': return 'rgba(95, 45, 140, 0.26)'
+    case 'convert': return 'rgba(43, 191, 168, 0.16)'
+    case 'awakening': return 'rgba(216, 169, 58, 0.22)'
     default: return 'var(--bg-panel)'
   }
 }
@@ -77,6 +79,8 @@ function getToastBorder(type: ToastType): string {
     case 'rite_incoming': return 'rgba(201, 48, 74, 0.5)'
     case 'roil': return 'rgba(150, 120, 200, 0.4)'
     case 'bargain': return 'rgba(150, 90, 210, 0.55)'
+    case 'convert': return 'rgba(70, 230, 205, 0.4)'
+    case 'awakening': return 'rgba(216, 169, 58, 0.6)'
     default: return 'var(--border)'
   }
 }

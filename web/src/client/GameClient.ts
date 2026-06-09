@@ -1,6 +1,7 @@
 import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats,
   LeaderboardKind, PatronId, GameEvent, Bargain, BargainOutcome,
+  ConvertResult, AwakeningState, GreatRiteResult,
 } from '../types'
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected'
@@ -47,6 +48,14 @@ export interface GameClient {
   // --- the Roil & wards (spec §9) ---
   /** A rite of warding — raise the home cell's ward against the Roil. Emits cell_update. */
   ward(): void
+
+  // --- spread, conversion & the Awakening (spec §9, build phase 6) ---
+  /** Carry the word to a cell: convert the uncommitted or flip a rival. Emits cell_converted. */
+  convert(targetCellId: string): Promise<ConvertResult>
+  /** The endgame snapshot — alignment, season, and your cell's readiness. */
+  awakeningState(): Promise<AwakeningState>
+  /** Perform the Great Rite — wake your patron and reseed the world. Throws unless ready. */
+  greatRite(): Promise<GreatRiteResult>
 
   // --- bargains: Nyarlathotep, the Tempter (spec §6, §7) ---
   /** The standing offer, if one is open (for restoring across reloads). */
