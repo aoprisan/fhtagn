@@ -195,6 +195,19 @@ export default function App() {
 
   useEffect(() => () => clearTimeout(hallucinateTimer.current), [])
 
+  // The interface itself frays with the cultist's mind: panels breathe out of
+  // focus, headings split chromatically. Driven by body classes so it reaches
+  // every panel without threading sanity through each component.
+  useEffect(() => {
+    const all = ['mind-fraying', 'mind-slipping', 'mind-unravelled']
+    document.body.classList.remove(...all)
+    if (cultist) {
+      const cls = sanity <= 15 ? 'mind-unravelled' : sanity <= 35 ? 'mind-slipping' : sanity <= 55 ? 'mind-fraying' : null
+      if (cls) document.body.classList.add(cls)
+    }
+    return () => document.body.classList.remove(...all)
+  }, [sanity, cultist])
+
   const onBargainOffer = useCallback((b: Bargain) => {
     setBargain(b)
     addToast('A bargain is offered. The Crawling Chaos awaits your answer.', 'bargain')

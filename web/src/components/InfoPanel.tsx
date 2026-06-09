@@ -134,33 +134,21 @@ export default function InfoPanel({ cell, isHome, userDevotion, rank, onSpread }
           <button
             onClick={() => game.ward()}
             title="Raise the wards against the Roil — they erode over time and must be tended"
-            style={{
-              flex: 1, background: 'rgba(124, 107, 176, 0.08)',
-              border: '1px solid var(--violet)', borderRadius: 8, padding: '8px 6px',
-              color: 'var(--violet)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-            }}
+            className="rite-btn"
+            style={{ flex: 1, '--rb': 'var(--violet)' } as React.CSSProperties}
           >
             Tend the Wards
-            <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
-              shelter from the Roil
-            </span>
+            <span className="rite-btn__hint">shelter from the Roil</span>
           </button>
           {onSpread && (
             <button
               onClick={onSpread}
               title="Carry the word to a nearby cell — convert the uncommitted, or flip a rival you overpower"
-              style={{
-                flex: 1, background: 'rgba(43, 191, 168, 0.08)',
-                border: '1px solid var(--teal)', borderRadius: 8, padding: '8px 6px',
-                color: 'var(--teal)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-              }}
+              className="rite-btn"
+              style={{ flex: 1, '--rb': 'var(--teal)' } as React.CSSProperties}
             >
               Spread the Word
-              <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400, marginTop: 2 }}>
-                convert a nearby cell
-              </span>
+              <span className="rite-btn__hint">convert a nearby cell</span>
             </button>
           )}
         </div>
