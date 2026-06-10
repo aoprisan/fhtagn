@@ -53,6 +53,16 @@ export default defineConfig({
     // No backend in the UI-first build — the app runs on the in-browser
     // MockGameClient. When the Go backend lands, restore an /api + /ws proxy here.
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/three/')) return 'three'
+          if (id.includes('/node_modules/react-globe.gl/')) return 'globe'
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

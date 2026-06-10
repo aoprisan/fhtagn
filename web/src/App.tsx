@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import Globe from './components/Globe'
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react'
 import Onboarding from './components/Onboarding'
 import ChantButton from './components/ChantButton'
 import InfoPanel from './components/InfoPanel'
@@ -29,6 +28,7 @@ import type {
 } from './types'
 
 const LEADERBOARD_REFRESH_MS = 3000
+const Globe = lazy(() => import('./components/Globe'))
 
 // The Great Rite is traced as the Unmaking (the cataclysm sigil) — the most
 // ornate sigil, fitting the culmination of a whole cycle (spec §4, §9).
@@ -472,16 +472,18 @@ export default function App() {
       <div className="fog" aria-hidden><span /><span /><span /></div>
 
       <ErrorBoundary>
-        <Globe
-          cells={cells}
-          userCellId={cultist?.cellId ?? null}
-          onCellClick={handleCellSelect}
-          selectedCellId={selectedCell?.id ?? null}
-          pulsingCellId={pulsingCellId}
-          roilStrike={roilStrike}
-          targetStatus={targetStatus}
-          paused={!!targetingRite || spreading}
-        />
+        <Suspense fallback={<div className="globe-loading" aria-hidden />}>
+          <Globe
+            cells={cells}
+            userCellId={cultist?.cellId ?? null}
+            onCellClick={handleCellSelect}
+            selectedCellId={selectedCell?.id ?? null}
+            pulsingCellId={pulsingCellId}
+            roilStrike={roilStrike}
+            targetStatus={targetStatus}
+            paused={!!targetingRite || spreading}
+          />
+        </Suspense>
       </ErrorBoundary>
 
       {cultist && sanity < 50 && (
