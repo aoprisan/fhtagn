@@ -7,22 +7,29 @@ const RATE_WINDOW = 60_000 // 60 seconds
 
 /**
  * Chant input with optimistic update + reconciliation. Reskin of the prototype's
- * useClickHandler — the optimistic/reconcile logic is preserved verbatim; only
- * the verb (click→chant) and the multiplier source (role→tier) changed.
+ * useClickHandler — the local pending total stays personal; cell devotion is a
+ * world counter and cannot safely confirm individual chants.
  */
 export function useChantHandler(
   cultist: Cultist | null,
   onOptimisticChant: () => void,
 ) {
   const [pendingChants, setPendingChants] = useState(0)
-  const serverChantsRef = useRef(0)
   const chantTimestamps = useRef<number[]>([])
+  const confirmedTotalRef = useRef(cultist?.totalChants ?? 0)
 
   const [rateLimited, setRateLimited] = useState(false)
   const rateLimitTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(rateLimitTimer.current), [])
 
   const multiplier = cultist?.tier === 'highPriest' ? 2 : 1
+
+  useEffect(() => {
+    const confirmed = cultist?.totalChants ?? 0
+    const delta = confirmed - confirmedTotalRef.current
+    confirmedTotalRef.current = confirmed
+    if (delta > 0) setPendingChants(prev => Math.max(0, prev - delta))
+  }, [cultist?.totalChants])
 
   const handleChant = useCallback(() => {
     if (!cultist || cultist.tier === 'witness') return
@@ -43,18 +50,9 @@ export function useChantHandler(
     game.chant()
   }, [cultist, onOptimisticChant, multiplier])
 
-  // Called when the world confirms our home cell's devotion via cell_update.
-  const reconcile = useCallback((serverTotal: number) => {
-    const prevServer = serverChantsRef.current
-    serverChantsRef.current = serverTotal
-    if (prevServer === 0) return
-    const confirmed = serverTotal - prevServer
-    setPendingChants(prev => Math.max(0, prev - confirmed))
-  }, [])
+  const personalChants = (cultist?.totalChants ?? 0) + pendingChants
 
-  const personalChants = (serverChantsRef.current || (cultist?.totalChants ?? 0)) + pendingChants
-
-  return { handleChant, personalChants, pendingChants, rateLimited, multiplier, reconcile }
+  return { handleChant, personalChants, pendingChants, rateLimited, multiplier }
 }
 
 export type { Tier }

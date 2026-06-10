@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  canConvert, greatWorkScore, worldAlignment, spreadCost,
+  canConvert, greatWorkBreakdown, greatWorkScore, worldAlignment, spreadCost,
   SPREAD_RANGE_KM, GREAT_WORK_GOAL, LORE_WEIGHT, REACH_WEIGHT,
 } from './awakening'
 import type { Cell, PatronId } from '../types'
@@ -66,6 +66,15 @@ describe('greatWorkScore', () => {
     expect(greatWorkScore(base)).toBe(100_000)
     expect(greatWorkScore(cell({ devotion: 100_000, reach: 1 }))).toBe(100_000 + REACH_WEIGHT)
     expect(greatWorkScore(cell({ devotion: 100_000, lore: 1 }))).toBe(100_000 + LORE_WEIGHT)
+  })
+
+  it('reports the visible contribution breakdown', () => {
+    expect(greatWorkBreakdown(cell({ devotion: 100_000, reach: 2, lore: 3 }))).toEqual({
+      devotion: 100_000,
+      reach: 2 * REACH_WEIGHT,
+      lore: 3 * LORE_WEIGHT,
+      total: 100_000 + 2 * REACH_WEIGHT + 3 * LORE_WEIGHT,
+    })
   })
 })
 

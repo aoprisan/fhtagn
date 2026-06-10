@@ -18,6 +18,12 @@ export default function AwakeningPanel({ state, canAct, onGreatRite }: Awakening
   const leaderPatron = state.leaderPatronId ? PATRON_BY_ID[state.leaderPatronId] : null
   const pct = Math.round(state.progress * 100)
   const homePct = Math.min(100, Math.round((state.homeScore / state.goal) * 100))
+  const parts = [
+    { label: 'Devotion', value: state.homeBreakdown.devotion, color: 'var(--gold)' },
+    { label: 'Lore', value: state.homeBreakdown.lore, color: 'var(--teal)' },
+    { label: 'Reach', value: state.homeBreakdown.reach, color: 'var(--crimson)' },
+  ]
+  const need = Math.max(0, state.goal - state.homeScore)
 
   return (
     <div className="panel awakening-panel" style={{
@@ -72,6 +78,20 @@ export default function AwakeningPanel({ state, canAct, onGreatRite }: Awakening
               position: 'absolute', inset: '0 auto 0 0', width: `${homePct}%`,
               background: 'var(--crimson)', transition: 'width 0.4s ease',
             }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+            {parts.map(p => (
+              <div key={p.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                <span style={{ color: 'var(--text-dim)' }}>{p.label}</span>
+                <span className="mono" style={{ color: p.color }}>{p.value.toLocaleString()}</span>
+              </div>
+            ))}
+            {!state.homeQualifies && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>Still needed</span>
+                <span className="mono" style={{ color: 'var(--text)' }}>{need.toLocaleString()}</span>
+              </div>
+            )}
           </div>
 
           <button

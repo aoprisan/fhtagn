@@ -62,13 +62,28 @@ export const REACH_WEIGHT = 15_000       // each cell reached counts most — sp
 // bargains), not handed out at world start. Prototype balance — tune later (spec §16).
 export const GREAT_WORK_GOAL = 1_800_000
 
+export interface GreatWorkBreakdown {
+  devotion: number
+  lore: number
+  reach: number
+  total: number
+}
+
+/** The visible parts of a cell's Great Work, separated for UI guidance. */
+export function greatWorkBreakdown(c: Cell): GreatWorkBreakdown {
+  const devotion = c.devotion
+  const lore = (c.lore ?? 0) * LORE_WEIGHT
+  const reach = (c.reach ?? 0) * REACH_WEIGHT
+  return { devotion, lore, reach, total: devotion + lore + reach }
+}
+
 /**
  * A cell's progress toward the Great Rite: raw devotion, plus the forbidden lore
  * it has uncovered and the reach of its spread. Spread and lore — not chanting
  * alone — are the road to waking a god, so the endgame rewards the phase-6 verbs.
  */
 export function greatWorkScore(c: Cell): number {
-  return c.devotion + (c.lore ?? 0) * LORE_WEIGHT + (c.reach ?? 0) * REACH_WEIGHT
+  return greatWorkBreakdown(c).total
 }
 
 export interface AlignmentView {

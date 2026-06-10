@@ -8,7 +8,7 @@ import { SEED_CELLS } from '../game/seedCells'
 import { PATRONS, RITE_BY_TYPE, RITE_THRESHOLDS, REVELATION_RITE_POOL } from '../game/catalog'
 import { rollBargain, perTickSpringChance } from '../game/bargains'
 import {
-  canConvert, greatWorkScore, worldAlignment,
+  canConvert, greatWorkBreakdown, greatWorkScore, worldAlignment,
   SPREAD_RANGE_KM, SPREAD_SEED_RETENTION, LORE_PER_CONVERSION,
 } from '../game/awakening'
 import { haversineKm } from '../game/geo'
@@ -591,11 +591,14 @@ export class MockGameClient implements GameClient {
   async awakeningState(): Promise<AwakeningState> {
     const view = worldAlignment(this.cells)
     const home = this.cultist ? this.cell(this.cultist.cellId) : null
-    const homeScore = home ? greatWorkScore(home) : 0
+    const homeBreakdown = home
+      ? greatWorkBreakdown(home)
+      : { devotion: 0, lore: 0, reach: 0, total: 0 }
+    const homeScore = homeBreakdown.total
     return {
       progress: view.progress, aligned: view.aligned, goal: view.goal, season: this.season,
       leaderCellName: view.leader?.name ?? '', leaderPatronId: view.leader?.patronId ?? null,
-      homeScore, homeQualifies: homeScore >= view.goal,
+      homeScore, homeBreakdown, homeQualifies: homeScore >= view.goal,
     }
   }
 

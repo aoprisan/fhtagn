@@ -14,12 +14,13 @@ interface GlobeProps {
   selectedCellId: string | null
   pulsingCellId: string | null
   roilStrike?: { lat: number; lng: number; key: number } | null  // the Roil falls here
+  targetStatus?: (cell: Cell) => 'valid' | 'invalid' | 'home' | null
   paused?: boolean   // stop auto-rotation (e.g. while aiming a rite)
 }
 
 interface Beam { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; born: number }
 
-export default function Globe({ cells, userCellId, onCellClick, selectedCellId, pulsingCellId, roilStrike, paused }: GlobeProps) {
+export default function Globe({ cells, userCellId, onCellClick, selectedCellId, pulsingCellId, roilStrike, targetStatus, paused }: GlobeProps) {
   const globeRef = useRef<any>(null)
   const [polygons, setPolygons] = useState<any[]>([])
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight })
@@ -223,17 +224,24 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
 
   const pointColor = useCallback((d: any) => {
     const cell = d as Cell
+    const status = targetStatus?.(cell)
+    if (status === 'valid') return '#d8a93aee'
+    if (status === 'invalid') return '#cf355066'
+    if (status === 'home') return '#f0c54a'
     if (cell.id === userCellId) return '#f0c54a'       // sickly tallow gold — yours
     if (cell.id === selectedCellId) return '#46e6cd'   // lure-light — selected
     return cell.devotion > 0 ? '#2bbfa8cc' : '#2bbfa83a'
-  }, [userCellId, selectedCellId])
+  }, [userCellId, selectedCellId, targetStatus])
 
   const pointRadius = useCallback((d: any) => {
     const cell = d as Cell
+    const status = targetStatus?.(cell)
+    if (status === 'valid') return 0.42
+    if (status === 'invalid') return 0.16
     if (cell.id === userCellId) return 0.4 + Math.min(0.4, 0.4 * Math.log10(Math.max(1, cells.find(c => c.id === userCellId)?.devotion ?? 1)) / Math.log10(Math.max(10, maxDevotion)))
     if (cell.devotion > 0) return 0.15 + Math.min(0.35, 0.35 * Math.log10(cell.devotion) / Math.log10(Math.max(10, maxDevotion)))
     return 0.12
-  }, [userCellId, maxDevotion, cells])
+  }, [userCellId, maxDevotion, cells, targetStatus])
 
   const handlePointClick = useCallback((point: any) => {
     const cell = point as Cell
@@ -245,11 +253,17 @@ export default function Globe({ cells, userCellId, onCellClick, selectedCellId, 
 
   const pointLabel = useCallback((d: any) => {
     const cell = d as Cell
+    const status = targetStatus?.(cell)
+    const hint = status === 'valid'
+      ? '<br/><span style="color:#d8a93a;">valid target</span>'
+      : status === 'invalid'
+        ? '<br/><span style="color:#cf3550;">beyond this working</span>'
+        : ''
     return `<div style="font-family: sans-serif; font-size: 13px; color: #e8e8f0; text-align: center;">
       <b>${cell.name}</b>, ${cell.country}<br/>
-      <span style="font-family: monospace; color: #c9a227;">${cell.devotion.toLocaleString()} devotion</span>
+      <span style="font-family: monospace; color: #c9a227;">${cell.devotion.toLocaleString()} devotion</span>${hint}
     </div>`
-  }, [])
+  }, [targetStatus])
 
   const cellsRef = useRef(cells)
   cellsRef.current = cells

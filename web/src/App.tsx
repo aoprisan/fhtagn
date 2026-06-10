@@ -18,7 +18,8 @@ import AwakeningPanel from './components/AwakeningPanel'
 import PwaPrompts from './components/PwaPrompts'
 import { game } from './client'
 import { PATRON_BY_ID } from './game/catalog'
-import { SPREAD_RANGE_KM } from './game/awakening'
+import { canConvert, SPREAD_RANGE_KM } from './game/awakening'
+import { haversineKm } from './game/geo'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
 import type {
@@ -116,8 +117,6 @@ export default function App() {
     }, LEADERBOARD_REFRESH_MS)
   }, [])
 
-  const reconcileRef = useRef<(serverTotal: number) => void>(() => {})
-
   const onCellUpdate = useCallback((update: CellUpdate) => {
     const merge = (c: Cell): Cell => ({
       ...c,
@@ -130,13 +129,10 @@ export default function App() {
     })
     setCells(prev => prev.map(c => (c.id === update.cellId ? merge(c) : c)))
     setSelectedCell(prev => (prev && prev.id === update.cellId ? merge(prev) : prev))
-    if (cultist && update.cellId === cultist.cellId) {
-      reconcileRef.current(update.devotion)
-    }
     setPulsingCellId(update.cellId)
     setTimeout(() => setPulsingCellId(null), 1500)
     refreshLeaderboard()
-  }, [refreshLeaderboard, cultist])
+  }, [refreshLeaderboard])
 
   const cellsRef = useRef(cells)
   cellsRef.current = cells
@@ -293,7 +289,7 @@ export default function App() {
     game.declineBargain(id)
   }, [])
 
-  const { handleChant, personalChants, rateLimited, multiplier, reconcile } = useChantHandler(
+  const { handleChant, personalChants, rateLimited, multiplier } = useChantHandler(
     cultist,
     () => {
       if (cultist) {
@@ -302,7 +298,6 @@ export default function App() {
       }
     },
   )
-  reconcileRef.current = reconcile
 
   // A matched sigil completes the rite chosen during targeting (spec §4).
   const castPendingRite = useCallback(async () => {
@@ -320,12 +315,30 @@ export default function App() {
 
   const handleCellSelect = useCallback((cell: Cell) => {
     if (targetingRite) {
+      const home = cultist ? cellsRef.current.find(c => c.id === cultist.cellId) : null
+      if (!home) return
+      if (cell.id === home.id) {
+        addToast('The rite needs a rival or distant victim, not your own altar.', 'rite')
+        return
+      }
+      const dist = haversineKm(home.lat, home.lng, cell.lat, cell.lng)
+      if (dist > targetingRite.rangeKm) {
+        addToast(`Too far for this rite: ${Math.round(dist).toLocaleString()}km > ${targetingRite.rangeKm.toLocaleString()}km.`, 'rite')
+        return
+      }
       // Target chosen — now the sigil must be traced to invoke.
       setPendingCast({ rite: targetingRite, cell })
       setTargetingRite(null)
       return
     }
     if (spreading) {
+      const home = cultist ? cellsRef.current.find(c => c.id === cultist.cellId) : null
+      if (!home) return
+      const check = canConvert(home, cell, cultist?.patronId ?? null)
+      if (!check.ok) {
+        addToast(check.reason ?? 'The word will not carry there.', 'convert')
+        return
+      }
       // Target chosen for conversion — carry the word there at once (no sigil; spread is core, low-friction).
       setSpreading(false)
       game.convert(cell.id)
@@ -336,7 +349,7 @@ export default function App() {
     setSelectedCell(cell)
     // On phones, surface the cell's grimoire page when a city is chosen.
     if (window.matchMedia('(max-width: 768px)').matches) setActiveTab('cell')
-  }, [targetingRite, spreading, addToast])
+  }, [targetingRite, spreading, cultist, addToast])
 
   const handleInvokeRite = useCallback((rite: Rite) => {
     setTargetingRite(rite)
@@ -382,6 +395,17 @@ export default function App() {
   const userCell = cultist ? cells.find(c => c.id === cultist.cellId) : null
   const totalDevotion = useMemo(() => cells.reduce((sum, c) => sum + c.devotion, 0), [cells])
   const selectedRank = selectedCell ? leaderboard.findIndex(c => c.id === selectedCell.id) + 1 : 0
+  const targetStatus = useCallback((cell: Cell) => {
+    if (!userCell || (!targetingRite && !spreading)) return null
+    if (cell.id === userCell.id) return 'home'
+    if (targetingRite) {
+      return haversineKm(userCell.lat, userCell.lng, cell.lat, cell.lng) <= targetingRite.rangeKm
+        ? 'valid'
+        : 'invalid'
+    }
+    const check = canConvert(userCell, cell, cultist?.patronId ?? null)
+    return check.ok ? 'valid' : 'invalid'
+  }, [userCell, targetingRite, spreading, cultist?.patronId])
 
   if (loading) {
     return (
@@ -455,6 +479,7 @@ export default function App() {
           selectedCellId={selectedCell?.id ?? null}
           pulsingCellId={pulsingCellId}
           roilStrike={roilStrike}
+          targetStatus={targetStatus}
           paused={!!targetingRite || spreading}
         />
       </ErrorBoundary>

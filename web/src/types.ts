@@ -243,6 +243,12 @@ export interface AwakeningState {
   leaderCellName: string
   leaderPatronId: PatronId | null
   homeScore: number         // your cell's Great Work
+  homeBreakdown: {
+    devotion: number
+    lore: number
+    reach: number
+    total: number
+  }
   homeQualifies: boolean    // your cell may perform the Great Rite now
 }
 
