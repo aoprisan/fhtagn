@@ -470,9 +470,9 @@ body.mind-unravelled .logo {
   .sheet > *::before, .sheet > *::after { display: none !important; }
 
   /* Chant orb: the ritual focus. Anchored bottom-RIGHT in the natural thumb
-     zone, sitting just above the dock. It is unmounted while a grimoire sheet
-     is open (see App), so it is fine to overlap the dock band here — when a
-     rune tab is summoned the orb is gone and every tab stays tappable. */
+     zone, sitting just above the dock. It stays mounted while a grimoire sheet
+     is open — floating above the drawer (z 58 > sheet 55) — but compacts so it
+     hides as little of the page as possible (body.sheet-open, set in App). */
   .click-button-area {
     left: auto !important;
     right: 18px !important;
@@ -484,7 +484,20 @@ body.mind-unravelled .logo {
     width: 136px !important;
     height: 136px !important;
     font-size: 22px !important;
+    /* Keep the inline press-bounce on transform, and animate the compact/expand */
+    transition: transform 0.13s cubic-bezier(0.34, 1.56, 0.64, 1),
+      width 0.2s ease, height 0.2s ease, font-size 0.2s ease !important;
   }
+  body.sheet-open .chant-orb {
+    width: 88px !important;
+    height: 88px !important;
+    font-size: 15px !important;
+  }
+  /* The orb's captions (cell name above, tally below) cede to the drawer */
+  body.sheet-open .click-button-area > span { display: none; }
+  /* Extra bottom room so the drawer's last rows can scroll out from under
+     the compacted orb hovering over its bottom-right corner */
+  body.sheet-open .sheet { padding-bottom: 110px; }
 
   /* Centered overlays keep clear of the dock */
   .sanity-vignette { /* handled inline */ }
