@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
 // Owns every PWA-facing moment: service-worker registration (so the build runs
-// offline against the in-browser sim), the "offline ready" notice, and the
-// install invitation — Android/desktop via beforeinstallprompt, iOS via a hint
-// since Safari fires no such event. Themed to the Drowned Vigil.
+// offline against the in-browser sim), the "offline ready" notice, the install
+// invitation — Android/desktop via beforeinstallprompt, iOS via a hint since
+// Safari fires no such event — and the always-visible update button. Themed to
+// the Drowned Vigil.
 
 const DISMISS_KEY = 'fhtagn.install.dismissed'
 const BASE = import.meta.env.BASE_URL
+const UPDATE_CHECK_MS = 60 * 60 * 1000   // hourly background check while open
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -30,14 +32,59 @@ export default function PwaPrompts() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [iosHint, setIosHint] = useState(false)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1')
+  // The update button is ALWAYS rendered; this is only its transient activity state.
+  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'current'>('idle')
+  const swReg = useRef<ServiceWorkerRegistration | null>(null)
+  const checkTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
+    needRefresh: [needRefresh],
+    updateServiceWorker,
   } = useRegisterSW({
+    onRegisteredSW(_url, reg) {
+      swReg.current = reg ?? null
+      if (reg) {
+        // A long-lived tab still hears about new builds without being asked.
+        const t = setInterval(() => { reg.update().catch(() => {}) }, UPDATE_CHECK_MS)
+        window.addEventListener('beforeunload', () => clearInterval(t))
+      }
+    },
     onRegisterError(err) {
       console.warn('[fhtagn] service worker registration failed', err)
     },
   })
+
+  // The one button, three moods: a new build waits → apply it (reloads); no
+  // service worker (dev / unsupported) → plain reload; otherwise → ask the
+  // network for a fresher build and report back.
+  async function checkForUpdate() {
+    if (needRefresh) {
+      await updateServiceWorker(true)
+      return
+    }
+    if (!swReg.current) {
+      window.location.reload()
+      return
+    }
+    setUpdateState('checking')
+    try { await swReg.current.update() } catch { /* offline — nothing to fetch */ }
+    // Give a freshly found worker a beat to surface needRefresh before
+    // declaring the build current.
+    clearTimeout(checkTimer.current)
+    checkTimer.current = setTimeout(() => {
+      setUpdateState(s => (s === 'checking' ? 'current' : s))
+    }, 1200)
+  }
+
+  // "Up to date" lingers a breath, then the button goes quiet again.
+  useEffect(() => {
+    if (updateState !== 'current') return
+    const t = setTimeout(() => setUpdateState('idle'), 2600)
+    return () => clearTimeout(t)
+  }, [updateState])
+
+  useEffect(() => () => clearTimeout(checkTimer.current), [])
 
   // Capture the install opportunity (Android/desktop), or fall back to the iOS hint.
   useEffect(() => {
@@ -97,6 +144,26 @@ export default function PwaPrompts() {
 
   return (
     <>
+      {/* Always shown: the player can pull a new build at any moment. It glows
+          when one is already waiting. */}
+      <button
+        className={`vigil-update ${needRefresh ? 'vigil-update--ready' : ''}`}
+        onClick={checkForUpdate}
+        disabled={updateState === 'checking'}
+        title={needRefresh
+          ? 'A new build is ready — apply and reload'
+          : 'Check for a new build of the Vigil'}
+      >
+        <span className="vigil-update__rune" aria-hidden>{needRefresh ? '✦' : '⟳'}</span>
+        {needRefresh
+          ? 'Update ready — renew'
+          : updateState === 'checking'
+            ? 'Consulting the stars…'
+            : updateState === 'current'
+              ? 'The Vigil is current'
+              : 'Update'}
+      </button>
+
       {showInstall && (
         <aside className="vigil-install" role="dialog" aria-label="Install FHTAGN">
           <img className="vigil-install__sigil" src={`${BASE}favicon.svg`} alt="" aria-hidden width={44} height={44} />
