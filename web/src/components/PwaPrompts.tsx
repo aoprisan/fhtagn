@@ -33,6 +33,8 @@ export default function PwaPrompts() {
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
   } = useRegisterSW({
     onRegisterError(err) {
       console.warn('[fhtagn] service worker registration failed', err)
@@ -97,6 +99,26 @@ export default function PwaPrompts() {
 
   return (
     <>
+      {/* A fresh build is waiting — let the player apply it on their own beat
+          rather than reloading mid-chant. updateServiceWorker(true) reloads. */}
+      {needRefresh && (
+        <aside className="vigil-install vigil-update" role="dialog" aria-label="Update FHTAGN">
+          <img className="vigil-install__sigil" src={`${BASE}favicon.svg`} alt="" aria-hidden width={44} height={44} />
+          <div className="vigil-install__body">
+            <h3>New rites have arrived</h3>
+            <p>A newer Vigil waits. Renew now to take it up — your cult is untouched.</p>
+          </div>
+          <div className="vigil-install__acts">
+            <button className="vigil-install__yes" onClick={() => updateServiceWorker(true)}>
+              Renew the Vigil
+            </button>
+            <button className="vigil-install__no" onClick={() => setNeedRefresh(false)} aria-label="Dismiss">
+              Later
+            </button>
+          </div>
+        </aside>
+      )}
+
       {showInstall && (
         <aside className="vigil-install" role="dialog" aria-label="Install FHTAGN">
           <img className="vigil-install__sigil" src={`${BASE}favicon.svg`} alt="" aria-hidden width={44} height={44} />
