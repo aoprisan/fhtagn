@@ -144,8 +144,9 @@ export default function PwaPrompts() {
 
   return (
     <>
-      {/* Always shown: the player can pull a new build at any moment. It glows
-          when one is already waiting. */}
+      {/* Always shown: the player can pull a new build at any moment, on their
+          own beat — it never reloads out from under them mid-chant. It glows
+          when a new build is already waiting. */}
       <button
         className={`vigil-update ${needRefresh ? 'vigil-update--ready' : ''}`}
         onClick={checkForUpdate}

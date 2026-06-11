@@ -16,6 +16,7 @@ import TempterCard from './components/TempterCard'
 import AwakeningPanel from './components/AwakeningPanel'
 import LiturgyPanel from './components/LiturgyPanel'
 import PwaPrompts from './components/PwaPrompts'
+import RulesScreen from './components/RulesScreen'
 import { game } from './client'
 import { PATRON_BY_ID, patronMods } from './game/catalog'
 import { canConvert, SPREAD_RANGE_KM } from './game/awakening'
@@ -67,6 +68,7 @@ export default function App() {
   const roilFlashTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
   const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [showRules, setShowRules] = useState(false)
   const hallucinateTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const leaderboardTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const { toasts, addToast } = useToasts()
@@ -552,6 +554,15 @@ export default function App() {
 
       <div className="logo">FHTAGN</div>
 
+      <button
+        className="rules-btn"
+        onClick={() => setShowRules(true)}
+        title="How to play — the grimoire of rules"
+        aria-label="How to play"
+      >
+        <span aria-hidden>☷</span> Rules
+      </button>
+
       <WorldPanel stats={worldStats} totalDevotion={totalDevotion} awakening={awakening} />
 
       <ToastSystem toasts={toasts} />
@@ -677,6 +688,8 @@ export default function App() {
           onDecline={handleDeclineBargain}
         />
       )}
+
+      {showRules && <RulesScreen onClose={() => setShowRules(false)} />}
     </>
   )
 }
