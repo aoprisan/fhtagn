@@ -218,6 +218,35 @@ body::after {
   72% { opacity: 0.85; }
 }
 
+/* ── Rules button — sits beneath the logo, opens the grimoire ─────────────── */
+.rules-btn {
+  position: absolute;
+  top: 54px;
+  left: 24px;
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(8, 15, 18, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.rules-btn:hover {
+  color: var(--teal-bright);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 16px -4px rgba(70, 230, 205, 0.45);
+}
+
 /* ── Section heading helper ───────────────────────────────────────────────── */
 .eyebrow {
   font-family: var(--font-display);
@@ -321,6 +350,7 @@ body.mind-unravelled .logo {
 @media (max-width: 768px) {
   /* Header band: wordmark left, world devotion right */
   .logo { top: 12px; left: 14px; font-size: 22px; letter-spacing: 3px; }
+  .rules-btn { top: 42px; left: 14px; padding: 4px 9px; font-size: 11px; }
 
   .global-counter {
     position: absolute !important;
@@ -557,6 +587,12 @@ body.mind-unravelled .logo {
   border: 1px solid var(--border);
 }
 .vigil-install__no:hover { color: var(--text-dim); border-color: var(--border-strong); }
+
+/* The update prompt borrows the install plate but reads as renewal, not arrival. */
+.vigil-update { border-color: var(--gold-dim); }
+.vigil-update .vigil-install__body h3 { color: var(--gold); }
+/* On the rare beat both want the top band, drop the install plate below it. */
+.vigil-update ~ .vigil-install { top: calc(max(16px, env(safe-area-inset-top, 0px)) + 92px); }
 
 .vigil-offline {
   position: fixed;
