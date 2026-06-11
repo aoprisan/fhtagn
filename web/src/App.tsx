@@ -210,6 +210,13 @@ export default function App() {
     addToast(t.message, 'rite_incoming')
   }, [addToast])
 
+  // While a grimoire sheet is open on phones the chant orb stays mounted but
+  // compacts (CSS body.sheet-open), so the drawer underneath remains readable.
+  useEffect(() => {
+    document.body.classList.toggle('sheet-open', isMobile && activeTab !== null)
+    return () => document.body.classList.remove('sheet-open')
+  }, [isMobile, activeTab])
+
   const onBargainOffer = useCallback((b: Bargain) => {
     setBargain(b)
     addToast('A bargain is offered. The Crawling Chaos awaits your answer.', 'bargain')
@@ -583,18 +590,17 @@ export default function App() {
         </>
       )}
 
-      {/* The orb steps aside while a grimoire sheet is open so it never
-          overlaps the drawer; the dock + sheet own the bottom band then. */}
-      {!(isMobile && activeSheet) && (
-        <ChantButton
-          onChant={tier === 'witness' ? handleWitnessJoin : handleChant}
-          personalChants={cultist ? personalChants : 0}
-          cellName={userCell?.name}
-          rateLimited={rateLimited}
-          tier={tier}
-          multiplier={multiplier}
-        />
-      )}
+      {/* The orb never leaves: chanting stays available even while a grimoire
+          sheet is open (it floats above the drawer, shrunk via body.sheet-open
+          so it hides as little of the page as possible). */}
+      <ChantButton
+        onChant={tier === 'witness' ? handleWitnessJoin : handleChant}
+        personalChants={cultist ? personalChants : 0}
+        cellName={userCell?.name}
+        rateLimited={rateLimited}
+        tier={tier}
+        multiplier={multiplier}
+      />
 
       <ConnectionStatus state={connectionState} />
 
