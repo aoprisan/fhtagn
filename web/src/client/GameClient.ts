@@ -2,12 +2,14 @@ import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats,
   LeaderboardKind, PatronId, GameEvent, Bargain, BargainOutcome,
   ConvertResult, AwakeningState, GreatRiteResult,
+  LiturgyState, BuyResult, LucidityResult,
 } from '../types'
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected'
 
 export interface InvokeResult {
   damage: number
+  harvest: number            // devotion returned to the caster's cell (soul harvest)
   riteType: string
   targetCellName: string
 }
@@ -31,8 +33,18 @@ export interface GameClient {
   myRites(): Promise<Rite[]>
 
   // --- actions ---
-  chant(): void                                  // emits cell_update (+ sanity_update)
+  chant(): void                                  // emits cell_update
+  /** Devotion the next chant will raise, after litany/patron/Veil/tier multipliers. */
+  chantPower(): number
   invokeRite(riteId: string, targetCellId: string): Promise<InvokeResult>
+
+  // --- the Liturgy: followers & litanies (v2 growth engine, spec §17) ---
+  /** Snapshot of the player's cult economy with all multipliers applied. */
+  liturgy(): Promise<LiturgyState>
+  /** Buy one follower of the given rank with the home cell's devotion. Emits cell_update. */
+  buyFollower(followerId: string): Promise<BuyResult>
+  /** Learn the next litany (doubles the chant). Emits cell_update. */
+  buyLitany(): Promise<BuyResult>
 
   // --- ascension (mock-billed) ---
   pact(): Promise<Pact | null>
@@ -42,8 +54,8 @@ export interface GameClient {
   // --- sanity (spec §7) ---
   /** Adjust the local cultist's sanity; emits sanity_update. */
   adjustSanity(delta: number, hallucination?: boolean): void
-  /** A rite of lucidity — claw sanity back toward Lucid. */
-  riteOfLucidity(): void
+  /** A rite of lucidity — claw sanity back toward Lucid, for a tithe of devotion. */
+  riteOfLucidity(): LucidityResult
 
   // --- the Roil & wards (spec §9) ---
   /** A rite of warding — raise the home cell's ward against the Roil. Emits cell_update. */

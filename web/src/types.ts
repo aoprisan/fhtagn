@@ -3,6 +3,21 @@
 
 export type PatronId = 'cthulhu' | 'dagon' | 'hastur' | 'shub-niggurath'
 
+/**
+ * Concrete mechanical asymmetry per patron (v2 re-evaluation: patrons were
+ * flavor-only; choice must matter). Every multiplier defaults to 1 / false.
+ */
+export interface PatronMods {
+  chantMul: number            // multiplies chant power
+  followerMul: number         // multiplies follower devotion/sec
+  spreadRangeMul: number      // multiplies how far the word carries
+  spreadCostMul: number       // multiplies the devotion cost of spreading
+  madnessSlope: number        // the Veil: devotion multiplier climbs to ×(1+slope) at 0 sanity
+  sanityRestoreMul: number    // multiplies deliberate sanity recovery (lucidity, wards, spread)
+  flipsCommitted: boolean     // may convert committed rivals without overpowering them
+  followerCostGrowth: number  // per-copy cost growth for followers (base 1.15)
+}
+
 export interface Patron {
   id: PatronId
   name: string
@@ -10,6 +25,7 @@ export interface Patron {
   boon: string
   drawback: string
   color: string
+  mods: PatronMods
 }
 
 /** A cult cell rooted in a real city. Was "City" in the prototype. */
@@ -58,6 +74,10 @@ export interface Cultist {
   riteProgress: number      // was clickMissileClicks
   lastRevelationThreshold: number  // was lastCumulativeThreshold
   todayChants?: number
+  // The Liturgy (v2): the cult the player has built. Persists across cycles —
+  // the world reseeds, the faith endures (the season loop's prestige carryover).
+  followers: Record<string, number>  // follower id → count owned
+  litanies: number                   // litanies learned (each doubles the chant)
 }
 
 export type RiteFamily = 'whisper' | 'manifestation' | 'cataclysm'
@@ -143,6 +163,38 @@ export interface BargainOutcome {
 export interface BargainSprung {
   kind: BargainCatchKind | 'passed'
   sprung: boolean
+  message: string
+}
+
+// ---- The Liturgy: followers & litanies (v2 growth engine, spec §17) ----
+
+/** Snapshot of the player's cult economy, with all multipliers applied. */
+export interface LiturgyState {
+  followers: Record<string, number>
+  litanies: number
+  devotionPerSec: number    // follower income after patron/tier/Veil multipliers
+  chantPower: number        // per-chant devotion after all multipliers
+  veil: number              // the current Veil multiplier (1 = lucid)
+}
+
+export interface BuyResult {
+  ok: boolean
+  cost: number
+  reason?: string
+}
+
+export interface LucidityResult {
+  ok: boolean
+  tithe: number             // devotion paid
+  restored: number          // sanity clawed back
+  reason?: string
+}
+
+/** The price of a thinned Veil: defection bleeds the cell; attention burns it. */
+export interface MadnessToll {
+  kind: 'defection' | 'attention'
+  devotionLoss: number
+  followerLost?: string     // name of the follower rank that walked, if one did
   message: string
 }
 
@@ -274,6 +326,7 @@ export type GameEvent =
   | { type: 'roil_strike'; data: RoilStrike }
   | { type: 'revelation_earned'; data: RevelationEarned }
   | { type: 'sanity_update'; data: SanityUpdate }
+  | { type: 'madness_toll'; data: MadnessToll }
   | { type: 'bargain_offer'; data: { bargain: Bargain } }
   | { type: 'bargain_sprung'; data: BargainSprung }
   | { type: 'cell_converted'; data: CellConverted }

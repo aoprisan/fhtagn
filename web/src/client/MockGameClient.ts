@@ -1,19 +1,28 @@
 import type {
   Cell, CellDetail, Cultist, Rite, Pact, WorldStats, Contributor,
-  LeaderboardKind, PatronId, GameEvent, RiteFamily, Bargain, BargainCatch, BargainOutcome,
+  LeaderboardKind, PatronId, PatronMods, GameEvent, RiteFamily, Bargain, BargainCatch, BargainOutcome,
   ConvertResult, AwakeningState, GreatRiteResult,
+  LiturgyState, BuyResult, LucidityResult,
 } from '../types'
 import { GameClient, EventBus, ConnectionState, InvokeResult } from './GameClient'
 import { SEED_CELLS } from '../game/seedCells'
-import { PATRONS, RITE_BY_TYPE, RITE_THRESHOLDS, REVELATION_RITE_POOL } from '../game/catalog'
+import { PATRONS, RITE_BY_TYPE, RITE_THRESHOLDS, REVELATION_RITE_POOL, patronMods } from '../game/catalog'
 import { rollBargain, perTickSpringChance } from '../game/bargains'
 import {
   canConvert, greatWorkBreakdown, greatWorkScore, worldAlignment,
   SPREAD_RANGE_KM, SPREAD_SEED_RETENTION, LORE_PER_CONVERSION,
 } from '../game/awakening'
+import {
+  FOLLOWERS, FOLLOWER_BY_ID, LITANIES, followerCost,
+  veilMultiplier, chantPower as computeChantPower, devotionPerSec as computeDevotionPerSec,
+  lucidityTithe, LUCIDITY_RESTORE, SOUL_HARVEST_FRACTION,
+  HIGH_PRIEST_CHANT_MUL, HIGH_PRIEST_FOLLOWER_MUL,
+} from '../game/liturgy'
 import { haversineKm } from '../game/geo'
 
-const SAVE_KEY = 'fhtagn.save.v1'
+// v2 ("the Liturgy update") rescaled the whole economy; old saves are from a
+// different world and are deliberately left behind under the v1 key.
+const SAVE_KEY = 'fhtagn.save.v2'
 const TICK_MS = 1600
 
 // Wards vs the Roil (spec §9: "ritual/wards lower per-cell odds but never to zero").
@@ -60,19 +69,21 @@ function randInt(lower: number, upper: number): number {
 }
 
 // Seed cells with varied starting devotion + a patron, so the world reads as
-// alive and the Devotion leaderboard has shape from the first frame.
+// alive and the Devotion leaderboard has shape from the first frame. The v2
+// world seeds far smaller than v1 (400..~72k, was 4k..~726k) so a player's own
+// economy can climb the boards within a session.
 function seedCells(): Cell[] {
   const patronIds = PATRONS.map(p => p.id)
   return SEED_CELLS.map((s, i) => {
     const h = hashStr(s.id)
-    const base = 4_000 + (h % 480_000)            // 4k .. 484k
+    const base = 400 + (h % 48_000)
     const devotion = Math.round(base * (0.5 + ((h >> 3) % 100) / 100))
     return {
       ...s,
       devotion,
       peakDevotion: devotion,
-      claimed: h % 5000,
-      contributorCount: 1 + (h % 240),
+      claimed: h % 2000,
+      contributorCount: 1 + (h % 120),
       riteStockpile: (h % 7 === 0) ? 1 + (h % 3) : 0,
       patronId: patronIds[(h + i) % patronIds.length] as PatronId,
       // A scattering of cells start partly warded, so the world shows the practice.
@@ -104,7 +115,9 @@ export class MockGameClient implements GameClient {
     this.cells = (loaded?.cells ?? seedCells()).map(c => ({
       ...c, wardLevel: c.wardLevel ?? 0, reach: c.reach ?? 0, lore: c.lore ?? 0,
     }))
-    this.cultist = loaded?.cultist ?? null
+    this.cultist = loaded?.cultist
+      ? { ...loaded.cultist, followers: loaded.cultist.followers ?? {}, litanies: loaded.cultist.litanies ?? 0 }
+      : null
     this.rites = loaded?.rites ?? []
     this.pactRec = loaded?.pact ?? null
     this.bargain = loaded?.bargain ?? null
@@ -142,6 +155,28 @@ export class MockGameClient implements GameClient {
 
   private emit(e: GameEvent): void { this.bus.emit(e) }
 
+  // ---------- the Liturgy: multipliers & income (spec §17) ----------
+  private mods(): PatronMods { return patronMods(this.cultist?.patronId) }
+
+  /** The Veil: all devotion gain multiplies as the mind frays (patron sets the slope). */
+  private veil(): number {
+    return this.cultist ? veilMultiplier(this.cultist.sanity, this.mods().madnessSlope) : 1
+  }
+
+  chantPower(): number {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return 1
+    const tierMul = cu.tier === 'highPriest' ? HIGH_PRIEST_CHANT_MUL : 1
+    return computeChantPower(cu.litanies, this.mods(), this.veil(), tierMul)
+  }
+
+  private devotionPerSec(): number {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return 0
+    const tierMul = cu.tier === 'highPriest' ? HIGH_PRIEST_FOLLOWER_MUL : 1
+    return computeDevotionPerSec(cu.followers, this.mods(), this.veil(), tierMul)
+  }
+
   // ---------- living world ----------
   private startTicking(): void {
     if (this.timer) return
@@ -173,7 +208,7 @@ export class MockGameClient implements GameClient {
       const c = this.pickRoilTarget()
       if (c) {
         const mitigation = wardMitigation(c.wardLevel)
-        const damage = Math.round(randInt(2_000, 18_000) * (1 - mitigation))
+        const damage = Math.round(randInt(500, 6_000) * (1 - mitigation))
         const warded = c.wardLevel > 0
         c.devotion = Math.max(0, c.devotion - damage)
         c.claimed += damage
@@ -188,14 +223,14 @@ export class MockGameClient implements GameClient {
       const from = this.cells[Math.floor(Math.random() * this.cells.length)]
       const to = this.cells[Math.floor(Math.random() * this.cells.length)]
       if (from && to && from.id !== to.id) {
-        const damage = randInt(300, 7000)
+        const damage = randInt(200, 4000)
         to.devotion = Math.max(0, to.devotion - damage)
         to.claimed += damage
         this.emit({
           type: 'rite_strike',
           data: {
             casterName: 'a rival cell', casterCellName: from.name, targetCellId: to.id,
-            riteType: damage > 3000 ? 'Manifestation' : 'Whisper', damage,
+            riteType: damage > 2000 ? 'Manifestation' : 'Whisper', damage,
             fromLat: from.lat, fromLng: from.lng, toLat: to.lat, toLng: to.lng,
           },
         })
@@ -245,9 +280,72 @@ export class MockGameClient implements GameClient {
       }
     }
 
+    this.liturgyTick()
     this.tempterTick()
     this.awakeningTick()
     this.save()
+  }
+
+  // ---------- the player's economy: follower income + the price of madness ----------
+  private liturgyTick(): void {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return
+    const home = this.cell(cu.cellId)
+    if (!home) return
+
+    // The faithful labour: follower income flows to the home cell every tick.
+    const dps = this.devotionPerSec()
+    if (dps > 0) {
+      const gain = Math.round(dps * (TICK_MS / 1000))
+      home.devotion += gain
+      if (home.devotion > home.peakDevotion) home.peakDevotion = home.devotion
+      this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    }
+
+    // The toll of the thinned Veil (spec §7 rework): below 40 sanity the flock
+    // bleeds — devotion walks, and deep in madness whole followers defect. At
+    // the brink, the patron's own lethal attention falls. These are the genuine
+    // downside the Veil's multiplier is gambled against.
+    if (cu.sanity < 40) {
+      const t = (40 - cu.sanity) / 40
+      if (Math.random() < t * 0.05) {
+        const loss = Math.max(50, Math.round(home.devotion * (0.03 + 0.05 * t)))
+        home.devotion = Math.max(0, home.devotion - loss)
+        home.claimed += loss
+        let followerLost: string | undefined
+        if (cu.sanity < 25) {
+          const owned = FOLLOWERS.filter(f => (cu.followers[f.id] ?? 0) > 0)
+          if (owned.length > 0) {
+            const f = owned[Math.floor(Math.random() * owned.length)]
+            cu.followers[f.id] -= 1
+            followerLost = f.name
+          }
+        }
+        this.emit({ type: 'cell_update', data: cellUpdate(home) })
+        this.emit({ type: 'madness_toll', data: {
+          kind: 'defection', devotionLoss: loss, followerLost,
+          message: followerLost
+            ? `A ${followerLost} walks into the dark, and ${loss.toLocaleString()} devotion follows it out.`
+            : `${loss.toLocaleString()} devotion slips away — a fraying mind cannot hold the flock.`,
+        } })
+      }
+    }
+    if (cu.sanity < 15 && Math.random() < 0.012) {
+      const loss = Math.max(200, Math.round(home.devotion * 0.2))
+      home.devotion = Math.max(0, home.devotion - loss)
+      home.claimed += loss
+      const from = this.cells[Math.floor(Math.random() * this.cells.length)] ?? home
+      this.emit({ type: 'rite_strike', data: {
+        casterName: 'your patron', casterCellName: 'beyond the stars', targetCellId: home.id,
+        riteType: 'lethal attention', damage: loss,
+        fromLat: from.lat, fromLng: from.lng, toLat: home.lat, toLng: home.lng,
+      } })
+      this.emit({ type: 'cell_update', data: cellUpdate(home) })
+      this.emit({ type: 'madness_toll', data: {
+        kind: 'attention', devotionLoss: loss,
+        message: `Your patron's eye opens. ${loss.toLocaleString()} devotion is burned away in its regard.`,
+      } })
+    }
   }
 
   // ---------- Nyarlathotep, the Tempter (spec §6, §7) ----------
@@ -271,7 +369,7 @@ export class MockGameClient implements GameClient {
   private makeOffer(): void {
     const cu = this.cultist
     if (!cu) return
-    const b = rollBargain(cu.sanity, uid())
+    const b = rollBargain(cu.sanity, this.cell(cu.cellId)?.devotion ?? 0, uid())
     if (!b) return
     this.bargain = b
     this.offerCooldown = 6   // a quiet beat before the next unbidden call
@@ -390,6 +488,7 @@ export class MockGameClient implements GameClient {
       id: uid(), name, cellId, patronId, sanity: 100,
       totalChants: 0, tier: 'initiate', souls: 0,
       best10s: 0, best1day: 0, riteProgress: 0, lastRevelationThreshold: 0,
+      followers: {}, litanies: 0,
     }
     const home = this.cell(cellId)
     if (home && !home.patronId) home.patronId = patronId
@@ -406,21 +505,65 @@ export class MockGameClient implements GameClient {
     if (!cu || cu.tier === 'witness') return
     const home = this.cell(cu.cellId)
     if (!home) return
-    const mult = cu.tier === 'highPriest' ? 2 : 1
+    // Chant power carries every multiplier: litanies, patron, tier, and the Veil.
+    // Chanting no longer restores sanity — recovery is deliberate, costly work
+    // (lucidity tithe, wards, spread), so the Veil stays a genuine gamble.
+    const power = this.chantPower()
 
-    home.devotion += mult
+    home.devotion += power
     if (home.devotion > home.peakDevotion) home.peakDevotion = home.devotion
-    cu.totalChants += mult
-    cu.riteProgress += mult
-
-    // Chanting claws sanity back toward lucidity (spec §7).
-    cu.sanity = Math.min(100, cu.sanity + 0.06 * mult)
+    cu.totalChants += power
+    cu.riteProgress += power
 
     this.checkRevelations(cu)
     this.checkRiteProgression(cu)
     this.emit({ type: 'cell_update', data: cellUpdate(home) })
-    this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
     this.save()
+  }
+
+  // ---------- GameClient: the Liturgy (spec §17) ----------
+  async liturgy(): Promise<LiturgyState> {
+    const cu = this.cultist
+    if (!cu) return { followers: {}, litanies: 0, devotionPerSec: 0, chantPower: 1, veil: 1 }
+    return {
+      followers: { ...cu.followers },
+      litanies: cu.litanies,
+      devotionPerSec: this.devotionPerSec(),
+      chantPower: this.chantPower(),
+      veil: this.veil(),
+    }
+  }
+
+  async buyFollower(followerId: string): Promise<BuyResult> {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return { ok: false, cost: 0, reason: 'only the sworn may gather followers' }
+    const def = FOLLOWER_BY_ID[followerId]
+    if (!def) return { ok: false, cost: 0, reason: 'no such follower' }
+    const home = this.cell(cu.cellId)
+    if (!home) return { ok: false, cost: 0, reason: 'no home cell' }
+    const owned = cu.followers[followerId] ?? 0
+    const cost = followerCost(def, owned, this.mods().followerCostGrowth)
+    if (home.devotion < cost) return { ok: false, cost, reason: 'too little devotion' }
+    home.devotion -= cost
+    cu.followers[followerId] = owned + 1
+    this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    this.save()
+    return { ok: true, cost }
+  }
+
+  async buyLitany(): Promise<BuyResult> {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return { ok: false, cost: 0, reason: 'only the sworn may learn the litanies' }
+    const next = LITANIES[cu.litanies]
+    if (!next) return { ok: false, cost: 0, reason: 'the last litany is already yours' }
+    const home = this.cell(cu.cellId)
+    if (!home) return { ok: false, cost: 0, reason: 'no home cell' }
+    if (home.devotion < next.cost) return { ok: false, cost: next.cost, reason: 'too little devotion' }
+    home.devotion -= next.cost
+    cu.litanies += 1
+    this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    this.save()
+    return { ok: true, cost: next.cost }
   }
 
   async invokeRite(riteId: string, targetCellId: string): Promise<InvokeResult> {
@@ -446,6 +589,11 @@ export class MockGameClient implements GameClient {
     if (from.riteStockpile > 0) from.riteStockpile -= 1
     // Wielding eldritch power uncovers lore — the home cell's Great Work deepens.
     from.lore += rite.tier
+    // The soul harvest (v2): a share of what the rite tears loose feeds the
+    // caster's own cell, so offence is an investment rather than a pure sink.
+    const harvest = Math.round(damage * SOUL_HARVEST_FRACTION)
+    from.devotion += harvest
+    if (from.devotion > from.peakDevotion) from.peakDevotion = from.devotion
 
     // Power has a price: invoking eldritch rites costs sanity, scaled by tier.
     const sanityCost = rite.tier === 3 ? 12 : rite.tier === 2 ? 7 : 3
@@ -463,7 +611,7 @@ export class MockGameClient implements GameClient {
     this.emit({ type: 'cell_update', data: cellUpdate(to) })
     this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
     this.save()
-    return { damage, riteType: rite.riteType, targetCellName: to.name }
+    return { damage, harvest, riteType: rite.riteType, targetCellName: to.name }
   }
 
   // ---------- GameClient: ascension (mock-billed) ----------
@@ -505,8 +653,22 @@ export class MockGameClient implements GameClient {
     this.save()
   }
 
-  riteOfLucidity(): void {
-    this.adjustSanity(12)
+  // Clawing back toward Lucid costs a tithe of the cell's devotion (v2): the
+  // free button collapsed the gamble; now climbing out of madness is paid for.
+  riteOfLucidity(): LucidityResult {
+    const cu = this.cultist
+    if (!cu || cu.tier === 'witness') return { ok: false, tithe: 0, restored: 0, reason: 'only the sworn may tithe' }
+    const home = this.cell(cu.cellId)
+    if (!home) return { ok: false, tithe: 0, restored: 0, reason: 'no home cell' }
+    const tithe = lucidityTithe(home.devotion)
+    if (home.devotion < tithe) return { ok: false, tithe, restored: 0, reason: 'too little devotion to tithe' }
+    const restored = Math.round(LUCIDITY_RESTORE * this.mods().sanityRestoreMul)
+    home.devotion -= tithe
+    cu.sanity = Math.min(100, cu.sanity + restored)
+    this.emit({ type: 'cell_update', data: cellUpdate(home) })
+    this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
+    this.save()
+    return { ok: true, tithe, restored }
   }
 
   // ---------- the Roil & wards (spec §9) ----------
@@ -534,7 +696,7 @@ export class MockGameClient implements GameClient {
     if (!home) return
     home.wardLevel = Math.min(WARD_MAX, home.wardLevel + WARD_STEP)
     // Tending the wards is lucid, deliberate work — a small balm to the mind.
-    cu.sanity = Math.min(100, cu.sanity + 1.5)
+    cu.sanity = Math.min(100, cu.sanity + 1.5 * this.mods().sanityRestoreMul)
     this.emit({ type: 'cell_update', data: cellUpdate(home) })
     this.emit({ type: 'sanity_update', data: { sanity: cu.sanity } })
     this.save()
@@ -575,7 +737,7 @@ export class MockGameClient implements GameClient {
     home.reach += 1
     home.lore += LORE_PER_CONVERSION
     // Spreading the word is fervent, lucid work — a small balm to the mind.
-    cu.sanity = Math.min(100, cu.sanity + 1)
+    cu.sanity = Math.min(100, cu.sanity + 1 * this.mods().sanityRestoreMul)
 
     this.emit({ type: 'cell_converted', data: {
       cellId: target.id, cellName: target.name, fromPatronId: fromPatron,

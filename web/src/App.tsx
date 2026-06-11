@@ -14,16 +14,18 @@ import SigilCanvas from './components/SigilCanvas'
 import SanityMeter from './components/SanityMeter'
 import TempterCard from './components/TempterCard'
 import AwakeningPanel from './components/AwakeningPanel'
+import LiturgyPanel from './components/LiturgyPanel'
 import PwaPrompts from './components/PwaPrompts'
 import { game } from './client'
-import { PATRON_BY_ID } from './game/catalog'
+import { PATRON_BY_ID, patronMods } from './game/catalog'
 import { canConvert, SPREAD_RANGE_KM } from './game/awakening'
+import { veilMultiplier, lucidityTithe } from './game/liturgy'
 import { haversineKm } from './game/geo'
 import { useGameClient } from './hooks/useGameClient'
 import { useChantHandler } from './hooks/useChantHandler'
 import type {
   Cell, Cultist, CellUpdate, RiteStrike, RoilStrike,
-  RevelationEarned, WorldStats, Rite, Bargain, BargainSprung,
+  RevelationEarned, WorldStats, Rite, Bargain, BargainSprung, MadnessToll,
   CellConverted, AwakeningState, AwakeningTriggered,
 } from './types'
 
@@ -204,6 +206,10 @@ export default function App() {
     return () => document.body.classList.remove(...all)
   }, [sanity, cultist])
 
+  const onMadnessToll = useCallback((t: MadnessToll) => {
+    addToast(t.message, 'rite_incoming')
+  }, [addToast])
+
   const onBargainOffer = useCallback((b: Bargain) => {
     setBargain(b)
     addToast('A bargain is offered. The Crawling Chaos awaits your answer.', 'bargain')
@@ -263,11 +269,15 @@ export default function App() {
   useEffect(() => () => clearTimeout(awakeningFlashTimer.current), [])
 
   const { connectionState } = useGameClient({
-    onCellUpdate, onRiteStrike, onRiteIncoming, onRoil, onRevelation, onSanity,
+    onCellUpdate, onRiteStrike, onRiteIncoming, onRoil, onRevelation, onSanity, onMadnessToll,
     onBargainOffer, onBargainSprung, onCellConverted, onAwakeningProgress, onAwakeningTriggered,
   })
 
-  const handleLucidity = useCallback(() => game.riteOfLucidity(), [])
+  const handleLucidity = useCallback(() => {
+    const r = game.riteOfLucidity()
+    if (r.ok) addToast(`A tithe of ${r.tithe.toLocaleString()} devotion buys back ${r.restored} sanity.`, 'revelation')
+    else addToast(`The rite of lucidity falters: ${r.reason ?? 'unknown'}.`, 'rite')
+  }, [addToast])
   const handleCourt = useCallback(() => {
     addToast('You speak into the dark, and the dark leans closer…', 'bargain')
     game.courtTempter()
@@ -293,8 +303,8 @@ export default function App() {
     cultist,
     () => {
       if (cultist) {
-        const mult = tier === 'highPriest' ? 2 : 1
-        setCells(prev => prev.map(c => c.id === cultist.cellId ? { ...c, devotion: c.devotion + mult } : c))
+        const power = Math.max(1, game.chantPower())
+        setCells(prev => prev.map(c => c.id === cultist.cellId ? { ...c, devotion: c.devotion + power } : c))
       }
     },
   )
@@ -306,7 +316,11 @@ export default function App() {
     setPendingCast(null)
     try {
       const result = await game.invokeRite(rite.id, cell.id)
-      addToast(`${result.riteType} claims ${result.damage.toLocaleString()} devotion in ${result.targetCellName}`, 'rite')
+      addToast(
+        `${result.riteType} claims ${result.damage.toLocaleString()} devotion in ${result.targetCellName}` +
+        (result.harvest > 0 ? ` — ${result.harvest.toLocaleString()} souls feed your cell` : ''),
+        'rite',
+      )
       setRiteRefreshKey(k => k + 1)
     } catch (e) {
       addToast(`The rite fails: ${e instanceof Error ? e.message : 'unknown'}`, 'rite')
@@ -447,8 +461,16 @@ export default function App() {
   )
   const ritePanelEl = <RitePanel tier={tier} onInvokeRite={handleInvokeRite} refreshKey={riteRefreshKey} />
   const pactPanelEl = <PactPanel tier={tier} onAscended={handleAscended} />
+  const veil = cultist ? veilMultiplier(sanity, patronMods(cultist.patronId).madnessSlope) : 1
+  const titheLabel = `${lucidityTithe(userCell?.devotion ?? 0).toLocaleString()} devotion`
   const sanityPanelEl = cultist && (
-    <SanityMeter sanity={sanity} hallucinating={hallucinating} onLucidity={handleLucidity} onCourt={handleCourt} />
+    <SanityMeter
+      sanity={sanity} hallucinating={hallucinating} veil={veil} titheLabel={titheLabel}
+      onLucidity={handleLucidity} onCourt={handleCourt}
+    />
+  )
+  const liturgyPanelEl = cultist && tier !== 'witness' && (
+    <LiturgyPanel cultist={cultist} homeDevotion={userCell?.devotion ?? 0} />
   )
   const awakeningPanelEl = (
     <AwakeningPanel state={awakening} canAct={!!cultist && tier !== 'witness'} onGreatRite={handleGreatRite} />
@@ -458,6 +480,7 @@ export default function App() {
   const dockTabs = [
     infoPanelEl && { key: 'cell', glyph: '◈', cap: 'Cell', el: infoPanelEl },
     cultistPanelEl && { key: 'you', glyph: '☩', cap: 'You', el: cultistPanelEl },
+    liturgyPanelEl && { key: 'cult', glyph: '⚚', cap: 'Cult', el: liturgyPanelEl },
     cultist && tier !== 'witness' && { key: 'rites', glyph: '✶', cap: 'Rites', el: ritePanelEl },
     sanityPanelEl && { key: 'mind', glyph: '☾', cap: 'Mind', el: sanityPanelEl },
     cultist && tier !== 'witness' && { key: 'pact', glyph: '⛧', cap: 'Pact', el: pactPanelEl },
@@ -534,6 +557,7 @@ export default function App() {
           {leaderboardEl}
           {infoPanelEl}
           {cultistPanelEl}
+          {liturgyPanelEl}
           {ritePanelEl}
           {pactPanelEl}
           {sanityPanelEl}

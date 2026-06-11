@@ -39,7 +39,7 @@ interface Template {
   /** Eligible only when sanity is within [min, max]; drives sanity-gating. */
   band: [number, number]
   window: number
-  build: (sanity: number, rng: Rng) => Pick<
+  build: (sanity: number, homeDevotion: number, rng: Rng) => Pick<
     Bargain,
     'grantLabel' | 'grantRiteType' | 'grantDevotion' | 'grantSanity' | 'sanityCost' | 'catch'
   >
@@ -58,7 +58,7 @@ const TEMPLATES: Template[] = [
     catchKind: 'attention',
     band: [0, 100],
     window: 8,
-    build: (sanity, rng) => {
+    build: (sanity, homeDevotion, rng) => {
       const t = delveT(sanity)
       const riteType = pick(sanity < 45 ? GIFT_POOL_DEEP : GIFT_POOL_SHALLOW, rng)
       return {
@@ -68,7 +68,8 @@ const TEMPLATES: Template[] = [
         catch: {
           kind: 'attention',
           chance: lerp(0.18, 0.42, t),
-          devotionLoss: range(8_000, 22_000, rng) + Math.round(t * 30_000),
+          // Scales with what the player has built, so the price always stings.
+          devotionLoss: Math.max(1_000, Math.round(homeDevotion * (lerp(0.1, 0.3, t) + rng() * 0.1))),
         },
       }
     },
@@ -80,7 +81,7 @@ const TEMPLATES: Template[] = [
     catchKind: 'false-clarity',
     band: [0, 58],   // preys only on the fraying
     window: 6,
-    build: (sanity, rng) => {
+    build: (sanity, _homeDevotion, rng) => {
       const t = delveT(sanity)
       const grantSanity = range(18, 30, rng)
       return {
@@ -103,9 +104,10 @@ const TEMPLATES: Template[] = [
     catchKind: 'defection',
     band: [0, 100],
     window: 10,
-    build: (sanity, rng) => {
+    build: (sanity, homeDevotion, rng) => {
       const t = delveT(sanity)
-      const grantDevotion = range(6_000, 14_000, rng) + Math.round(t * 12_000)
+      // A meaningful surge at any scale: a slice of the cell, deeper as the mind frays.
+      const grantDevotion = Math.max(600, Math.round(homeDevotion * (0.1 + rng() * 0.08 + t * 0.12)))
       return {
         grantLabel: `a surge of ${grantDevotion.toLocaleString()} devotion`,
         grantDevotion,
@@ -127,7 +129,7 @@ const TEMPLATES: Template[] = [
     catchKind: 'attention',
     band: [0, 48],   // the deep gamble — strongest grant, heaviest price
     window: 7,
-    build: (sanity, rng) => {
+    build: (sanity, homeDevotion, rng) => {
       const t = delveT(sanity)
       const riteType = pick(TOME_POOL, rng)
       return {
@@ -137,7 +139,7 @@ const TEMPLATES: Template[] = [
         catch: {
           kind: 'attention',
           chance: lerp(0.4, 0.62, t),
-          devotionLoss: range(30_000, 60_000, rng) + Math.round(t * 40_000),
+          devotionLoss: Math.max(2_000, Math.round(homeDevotion * (lerp(0.25, 0.5, t) + rng() * 0.15))),
         },
       }
     },
@@ -150,16 +152,18 @@ function eligible(sanity: number): Template[] {
 }
 
 /**
- * Roll a concrete offer for a given sanity. Lower sanity is tempted more often
- * by the deeper templates (clarity/tome), reflecting Nyarlathotep preying on the
- * fraying mind. Returns null only if nothing is eligible (it never is — `gift`
- * and `swarm` span the whole range — but the caller stays defensive).
+ * Roll a concrete offer for a given sanity and home-cell devotion (grants and
+ * catches scale with what the player has built, so the Tempter matters at every
+ * stage). Lower sanity is tempted more often by the deeper templates
+ * (clarity/tome), reflecting Nyarlathotep preying on the fraying mind. Returns
+ * null only if nothing is eligible (it never is — `gift` and `swarm` span the
+ * whole range — but the caller stays defensive).
  */
-export function rollBargain(sanity: number, id: string, rng: Rng = Math.random): Bargain | null {
+export function rollBargain(sanity: number, homeDevotion: number, id: string, rng: Rng = Math.random): Bargain | null {
   const pool = eligible(sanity)
   if (pool.length === 0) return null
   const tpl = pick(pool, rng)
-  const built = tpl.build(sanity, rng)
+  const built = tpl.build(sanity, homeDevotion, rng)
   return {
     id,
     kind: tpl.kind,

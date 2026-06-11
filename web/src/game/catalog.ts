@@ -1,41 +1,65 @@
-import type { Patron, PatronId, RiteFamily } from '../types'
+import type { Patron, PatronId, PatronMods, RiteFamily } from '../types'
 
-// Patrons (spec §6). Asymmetric flavor; boons are descriptive in v1 (mock sim
-// applies light accrual differences; full asymmetry is a later phase).
+// Patrons (spec §6, reworked in the v2 re-evaluation). Patron choice was pure
+// flavor in v1; each patron now plays a distinct game, expressed entirely
+// through `mods` so the rules live in one place:
+//   Cthulhu — the idle patron: followers earn more, your own voice carries less.
+//   Dagon — the expansion patron: the word travels far and cheap, followers toil slower.
+//   Hastur — the risk patron: madness pays double and the committed can be turned,
+//            but the mind mends at half pace.
+//   Shub-Niggurath — the rush patron: chants and followers surge, costs climb faster.
+
+const BASE_MODS: PatronMods = {
+  chantMul: 1, followerMul: 1, spreadRangeMul: 1, spreadCostMul: 1,
+  madnessSlope: 1.5, sanityRestoreMul: 1, flipsCommitted: false, followerCostGrowth: 1.15,
+}
+
+/** Mods for the unsworn (and any cell without a patron). */
+export const DEFAULT_MODS: PatronMods = BASE_MODS
+
 export const PATRONS: Patron[] = [
   {
     id: 'cthulhu',
     name: 'Cthulhu',
     domain: 'Dreams & the deep — R’lyeh, beneath the Pacific',
-    boon: 'Devotion accrues while you sleep',
-    drawback: 'Slow to wake; a sluggish early ramp',
+    boon: 'Followers labour in dream: +50% follower devotion',
+    drawback: 'Your own chant carries faintly: −25%',
     color: '#1f9e8f', // eldritch teal
+    mods: { ...BASE_MODS, chantMul: 0.75, followerMul: 1.5 },
   },
   {
     id: 'dagon',
     name: 'Dagon',
     domain: 'The oceans and the Deep Ones',
-    boon: 'Spreads fastest along coasts and rivers',
-    drawback: 'Falters far inland',
+    boon: 'The word swims far: spread 60% further, at half the cost',
+    drawback: 'Followers toil slower far from the deep: −10%',
     color: '#3b6ea5', // abyssal blue
+    mods: { ...BASE_MODS, followerMul: 0.9, spreadRangeMul: 1.6, spreadCostMul: 0.5 },
   },
   {
     id: 'hastur',
     name: 'Hastur',
     domain: 'Madness and decay — the King in Yellow',
-    boon: 'Turns rival cultists; strongest as sanity fails',
-    drawback: 'Fragile while the mind holds',
+    boon: 'Turns even the committed; madness pays double',
+    drawback: 'The mind mends at half pace',
     color: '#c9a227', // sickly gold
+    mods: { ...BASE_MODS, madnessSlope: 3, sanityRestoreMul: 0.5, flipsCommitted: true },
   },
   {
     id: 'shub-niggurath',
     name: 'Shub-Niggurath',
     domain: 'Proliferation — the Black Goat of the Woods',
-    boon: 'Raw multiplication; spawns swarm without end',
-    drawback: 'The highest upkeep of all',
+    boon: 'A thousand young: chants +50%, followers +20%',
+    drawback: 'The brood hungers — follower costs climb faster',
     color: '#9c2f3a', // madness crimson
+    mods: { ...BASE_MODS, chantMul: 1.5, followerMul: 1.2, followerCostGrowth: 1.18 },
   },
 ]
+
+/** The mods a cultist plays under — DEFAULT_MODS until sworn to a patron. */
+export function patronMods(patronId: PatronId | null | undefined): PatronMods {
+  return patronId ? PATRON_BY_ID[patronId].mods : DEFAULT_MODS
+}
 
 export const PATRON_BY_ID: Record<PatronId, Patron> = Object.fromEntries(
   PATRONS.map(p => [p.id, p]),
