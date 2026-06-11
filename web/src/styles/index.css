@@ -601,11 +601,45 @@ body.mind-unravelled .logo {
 }
 .vigil-install__no:hover { color: var(--text-dim); border-color: var(--border-strong); }
 
-/* The update prompt borrows the install plate but reads as renewal, not arrival. */
-.vigil-update { border-color: var(--gold-dim); }
-.vigil-update .vigil-install__body h3 { color: var(--gold); }
-/* On the rare beat both want the top band, drop the install plate below it. */
-.vigil-update ~ .vigil-install { top: calc(max(16px, env(safe-area-inset-top, 0px)) + 92px); }
+/* The always-on update button: a quiet pill beside the Rules button, under
+   the wordmark, that wakes (gold, pulsing) when a new build waits to take over. */
+.vigil-update {
+  position: fixed;
+  top: 56px;
+  left: 118px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(6, 12, 16, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.vigil-update:hover { color: var(--text); border-color: var(--border-strong); }
+.vigil-update:disabled { cursor: default; opacity: 0.7; }
+.vigil-update__rune { font-size: 11px; line-height: 1; }
+.vigil-update--ready {
+  color: var(--gold);
+  border-color: rgba(216, 169, 58, 0.55);
+  box-shadow: 0 0 14px rgba(216, 169, 58, 0.35);
+  animation: vigil-update-pulse 2.6s ease-in-out infinite;
+}
+@keyframes vigil-update-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(216, 169, 58, 0.25); }
+  50% { box-shadow: 0 0 18px rgba(216, 169, 58, 0.5); }
+}
+@media (max-width: 768px) {
+  .vigil-update { top: 44px; left: 102px; }
+}
 
 .vigil-offline {
   position: fixed;
@@ -644,6 +678,6 @@ body.mind-unravelled .logo {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vigil-install, .vigil-offline { animation: none; }
+  .vigil-install, .vigil-offline, .vigil-update--ready { animation: none; }
   .vigil-install__sigil { animation: none; }
 }

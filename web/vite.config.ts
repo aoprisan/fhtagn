@@ -12,9 +12,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Surface new builds as an in-app update prompt rather than reloading out
-      // from under the player mid-chant; <PwaPrompts> shows the Update button and
-      // calls updateServiceWorker() only when they accept.
+      // 'prompt': a fresh SW waits until the player applies it — the always-on
+      // update button in <PwaPrompts> checks for builds and swaps them in.
       registerType: 'prompt',
       // We own registration via virtual:pwa-register/react in <PwaPrompts>.
       injectRegister: null,
