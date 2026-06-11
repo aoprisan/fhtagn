@@ -23,7 +23,9 @@ export function useChantHandler(
   const rateLimitTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(rateLimitTimer.current), [])
 
-  const multiplier = cultist?.tier === 'highPriest' ? 2 : 1
+  // Chant power carries every multiplier (litanies, patron, tier, the Veil);
+  // the client computes it so optimistic updates match the authoritative gain.
+  const multiplier = cultist && cultist.tier !== 'witness' ? Math.max(1, game.chantPower()) : 1
 
   useEffect(() => {
     const confirmed = cultist?.totalChants ?? 0

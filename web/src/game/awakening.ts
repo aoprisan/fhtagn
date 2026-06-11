@@ -1,5 +1,6 @@
 import type { Cell, PatronId } from '../types'
 import { haversineKm } from './geo'
+import { patronMods } from './catalog'
 
 // Spread, conversion & the Awakening — the endgame (spec §9, build phase 6).
 //
@@ -31,22 +32,23 @@ export interface ConvertCheck {
 
 /**
  * Whether `home` (serving `patron`) may convert `target`. The uncommitted fall
- * to anyone in range; a rival's cell only flips if you overpower it — or if you
- * serve Hastur, who turns the committed wherever the King in Yellow's madness
- * reaches (spec §6 boon).
+ * to anyone in range; a rival's cell only flips if you overpower it — or if your
+ * patron turns the committed (Hastur, the King in Yellow). Patron mods set how
+ * far the word carries and what it costs (Dagon spreads far and cheap).
  */
 export function canConvert(home: Cell, target: Cell, patron: PatronId | null): ConvertCheck {
   if (home.id === target.id) return { ok: false, reason: 'A cell cannot spread into itself.' }
+  const mods = patronMods(patron)
+  const range = Math.round(SPREAD_RANGE_KM * mods.spreadRangeMul)
   const dist = haversineKm(home.lat, home.lng, target.lat, target.lng)
-  if (dist > SPREAD_RANGE_KM) return { ok: false, reason: `Beyond your reach (${Math.round(dist)}km > ${SPREAD_RANGE_KM}km).` }
+  if (dist > range) return { ok: false, reason: `Beyond your reach (${Math.round(dist)}km > ${range}km).` }
   if (target.patronId && patron && target.patronId === patron) {
     return { ok: false, reason: 'Already sworn to your patron.' }
   }
-  const cost = spreadCost(home)
+  const cost = Math.round(spreadCost(home) * mods.spreadCostMul)
   if (home.devotion < cost + 100) return { ok: false, reason: 'Too little devotion to seed a new cell.' }
   if (target.patronId !== null) {
-    const isHastur = patron === 'hastur'
-    if (!isHastur && home.devotion < target.devotion * OVERPOWER_RATIO) {
+    if (!mods.flipsCommitted && home.devotion < target.devotion * OVERPOWER_RATIO) {
       return { ok: false, reason: 'The rival holds too strong — only Hastur turns the committed.' }
     }
   }
@@ -57,10 +59,11 @@ export function canConvert(home: Cell, target: Cell, patron: PatronId | null): C
 
 export const LORE_WEIGHT = 10_000        // each lore counts heavily toward the Great Work
 export const REACH_WEIGHT = 15_000       // each cell reached counts most — spread is the path
-// The Great Work a cell must amass to perform the Great Rite. Set above the
-// strongest seed cell so alignment is climbed through play (chant, spread, lore,
-// bargains), not handed out at world start. Prototype balance — tune later (spec §16).
-export const GREAT_WORK_GOAL = 1_800_000
+// The Great Work a cell must amass to perform the Great Rite. Set well above the
+// strongest seed cell (the v2 world seeds smaller, so the player's economy can
+// matter) — alignment is climbed through play (liturgy, spread, lore, bargains),
+// not handed out at world start. Prototype balance — tune later (spec §16).
+export const GREAT_WORK_GOAL = 1_200_000
 
 export interface GreatWorkBreakdown {
   devotion: number

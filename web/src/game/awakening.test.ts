@@ -49,6 +49,15 @@ describe('canConvert', () => {
     expect(canConvert(home, strong, 'hastur').ok).toBe(true)
   })
 
+  it('lets Dagon carry the word further, at half the cost (the Deep One boon)', () => {
+    const home = cell({ id: 'h', devotion: 100_000 })
+    const far = cell({ id: 't', lat: 0, lng: 30, patronId: null })   // ~3,300km — past base range
+    expect(canConvert(home, far, 'cthulhu').ok).toBe(false)
+    const r = canConvert(home, far, 'dagon')
+    expect(r.ok).toBe(true)
+    expect(r.cost).toBe(Math.round(spreadCost(home) * 0.5))
+  })
+
   it('refuses when devotion is too thin to seed a cell', () => {
     const home = cell({ id: 'h', devotion: 200 })   // below the minimum spread cost + buffer
     const target = cell({ id: 't', lat: 0, lng: 1, patronId: null })

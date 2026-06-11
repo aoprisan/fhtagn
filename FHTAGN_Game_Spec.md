@@ -55,16 +55,21 @@ New systems with no prototype equivalent (Sections 6–9): **Sanity/Power meter*
 
 ## 3. Core gameplay loop
 
-1. **Chant** to gather devotion (and grow your personal contribution).
-2. **Trace a sigil** to invoke a Rite — an eldritch power cast on a target cell, or a
-   patron boon on your own.
-3. **Spread** to neighbouring cells; convert the uncommitted; court **Nyarlathotep's
-   bargains** for power.
-4. **Endure the Roil** (random cosmic strikes) and manage your **Sanity**, while
-   edging toward **the Awakening**.
+> **v2 (the Liturgy update):** the loop gained a spend step — see §17 for the full
+> re-evaluation and rationale. Devotion is now a *currency*, not just a score.
 
-The moment-to-moment is chant-heavy and low-friction; the strategic beats are sigils,
-bargains, and spread.
+1. **Chant** to gather devotion (and grow your personal contribution).
+2. **Spend** devotion on the **Liturgy** — followers (devotion per second) and
+   litanies (chant multipliers) — so the numbers compound instead of crawling.
+3. **Trace a sigil** to invoke a Rite — an eldritch power cast on a target cell; a
+   share of what it tears loose is **harvested** back into your own cell.
+4. **Spread** to neighbouring cells; convert the uncommitted; court **Nyarlathotep's
+   bargains** for power.
+5. **Endure the Roil** (random cosmic strikes) and gamble your **Sanity** against
+   **the Veil** (madness pays — and bleeds), while edging toward **the Awakening**.
+
+The moment-to-moment is chant-heavy and low-friction; the strategic beats are the
+liturgy, sigils, bargains, and spread.
 
 ---
 
@@ -112,12 +117,15 @@ Two verbs. Do **not** replace clicking wholesale with gestures.
 Replaces "pick a city" with "pick a patron." Asymmetric; gives the metagame
 rock-paper-scissors texture. Store `patron_id` on the user/cell.
 
-| Patron | Domain / seat | Signature boon | Drawback |
+> **v2:** patrons were flavor-only; each is now a distinct playstyle with concrete
+> numbers, expressed as a single `mods` record so the rules live in one place.
+
+| Patron | Playstyle | Boon (concrete) | Drawback (concrete) |
 |---|---|---|---|
-| **Cthulhu** | Dreams & the deep; R'lyeh (Pacific) | Passive devotion accrues while idle | Slow early ramp |
-| **Dagon** | Oceans, Deep Ones | Spreads fastest along coasts/rivers | Weak inland |
-| **Hastur** | Madness & decay; King in Yellow | Can convert rival cultists; thrives at low Sanity | Fragile at high Sanity |
-| **Shub-Niggurath** | Proliferation; the Black Goat | Raw multiplication / swarm spawn | Highest upkeep |
+| **Cthulhu** | The idle patron | Follower devotion ×1.5 (they labour in dream) | Own chant ×0.75 |
+| **Dagon** | The expansion patron | Spread range ×1.6, spread cost ×0.5 | Follower devotion ×0.9 |
+| **Hastur** | The risk patron | Converts even committed rivals; the Veil pays **double** (madness slope 3 vs 1.5) | All deliberate sanity recovery ×0.5 |
+| **Shub-Niggurath** | The rush patron | Chant ×1.5, follower devotion ×1.2 | Follower costs grow ×1.18/copy (vs ×1.15) |
 
 Two **framing forces** (not playable, drive systems):
 - **Azathoth** — the blind idiot god → source of **the Roil** (random strikes). *(Named
@@ -127,22 +135,29 @@ Two **framing forces** (not playable, drive systems):
 
 ---
 
-## 7. Sanity vs. Power meter (the decision system)
+## 7. Sanity vs. Power — the Veil (v2 ruleset)
 
-A single per-player scalar, e.g. `sanity` in `[0,100]` (100 = Lucid, 0 = Unravelled).
+A single per-player scalar, `sanity` in `[0,100]` (100 = Lucid, 0 = Unravelled).
 
-- Accepting eldritch gifts / forbidden lore / bargains **lowers** sanity and **raises**
-  available power (stronger rites, higher multipliers).
-- Chanting and "rites of lucidity" **restore** sanity slowly.
-- **Low sanity unlocks the strongest rites but raises danger:**
-  - Higher chance of drawing your patron's *lethal attention* (a targeted strike).
-  - Risk of cultist defection (devotion loss).
-  - **Hallucinated events:** UI shows phantom strikes/incoming you can't distinguish from
-    real ones — purely client-side dread, no state change.
-- Design intent: the loop becomes *delve → gain → claw back toward lucidity → delve
-  again*. **This must be a genuine gamble, not a timer to optimise** — make the downside
-  probabilistic and meaningful, or the choice collapses. (Flagged as the #1 thing to
-  prototype.)
+v1 shipped this as pure downside plus a *free* "+12 sanity" button, which collapsed
+the gamble (the spec's own #1 flagged risk). v2 makes both sides real:
+
+- **The upside — the Veil:** ALL devotion gain (chant + followers) is multiplied by
+  `1 + slope × (100 − sanity)/100`. Base slope 1.5 (×2.5 at zero sanity); Hastur's
+  slope is 3 (×4). Madness *pays*, continuously, so delving is always tempting.
+- **The downside — the toll:** below 40 sanity the flock bleeds (probabilistic
+  devotion loss each tick, scaling with depth); below 25 whole **followers defect**;
+  below 15 the patron's **lethal attention** can fall (~20% of the cell, rare).
+  Hallucinated strikes remain (client-side dread, no state change).
+- **Recovery is deliberate and costly — never free:**
+  - **Rite of Lucidity:** +15 sanity for a **tithe of 8%** of the cell's devotion.
+  - Tending wards (+1.5) and spreading the word (+1) — slow, lucid work.
+  - Chanting no longer restores sanity (it was an invisible free regen).
+  - All recovery is scaled by the patron's `sanityRestoreMul` (Hastur halves it).
+- Bargains still lower sanity for power, and lower sanity draws stronger offers with
+  worse hidden catches (§ Bargains): power and danger rise together.
+- Design intent (unchanged, now actually enforced): *delve → gain → claw back toward
+  lucidity → delve again*, as a genuine economic gamble rather than a reflex.
 
 ---
 
@@ -160,6 +175,9 @@ Keep the 3-families × 3-tiers structure; reskin names and gate by sigil complex
   **Haversine** distance between casting and target cells (keep existing logic).
 - Damage rolled within band, subtracted from target cell devotion; "souls claimed"
   accrue to the caster (reskinned kill counter).
+- **Soul harvest (v2):** 25% of the damage dealt returns to the caster's cell as
+  devotion. v1 combat gave the attacker nothing, so rational players never cast;
+  offence is now an investment, not a sink.
 - Tier also sets **sigil complexity** (Section 4): Whisper = 1 stroke, Cataclysm =
   multi-stroke ornate.
 - **Today: offence only** (as in prototype). Defences (wards/interceptors) are roadmap.
@@ -283,6 +301,53 @@ exactly as the prototype derives achievements. Adapt thresholds; no new tables.
 - **Conversion vs. damage:** is "convert rival cultists" the primary PvP verb, with rites
   as the aggressive minority? (Recommended, to stay non-toxic and on-theme.)
 - **Tone lock:** atmospheric vs. comic — decide before art.
+
+---
+
+## 17. v2 re-evaluation — the Liturgy update
+
+A full design pass over the shipped UI-first build, against the question: *would this
+succeed as a game?* Verdict: the theme, globe spectacle, sigil input, hidden-catch
+bargains, and season loop are strong; the **core economy was broken** in four ways,
+each fixed in v2.
+
+### What was broken, and the fix
+
+1. **No growth curve.** A chant was +1 forever, in a world seeded with cells holding
+   hundreds of thousands. The genre's heartbeat — buy generators, watch numbers
+   compound — was absent; the core verb was statistically meaningless within a minute.
+   **Fix: the Liturgy.** Devotion is spendable. **Followers** are generators
+   (Whisperer 50→1/s up to Black Library 1.2M→6,400/s; cost ×1.15 per copy) and
+   **Litanies** are chant doublers (6 ranks, 300 → 30M). The world reseeds smaller
+   (≈400–72k per cell) so a session of play visibly climbs the boards.
+2. **Sanity wasn't a gamble.** High sanity had no opportunity cost, low sanity no
+   upside outside bargains, and the free +12 lucidity button pinned the meter.
+   **Fix: the Veil** (§7) — madness multiplies all income; tolls, defections, and
+   lethal attention bleed it back; lucidity costs an 8% tithe.
+3. **Combat was unmotivated.** Rites cost sanity and granted a vanity counter.
+   **Fix: soul harvest** (§8) — 25% of damage feeds the caster's cell.
+4. **Patrons were skins.** Only Hastur had a mechanic. **Fix:** every patron is a
+   playstyle with concrete multipliers (§6), chosen with honest copy at onboarding.
+
+### Supporting changes
+
+- **Bargains scale with the player** — grants and hidden catches are fractions of the
+  home cell's devotion, so the Tempter stings identically at 5k and 500k. (They were
+  flat numbers: absurdly generous early, irrelevant late.)
+- **The cult endures the Awakening** — followers and litanies persist when the world
+  reseeds, making the season loop a light prestige system: each cycle restarts the map,
+  not the player's engine.
+- **Great Work goal** retuned to 1.2M for the smaller world; Roil and bot strike
+  damage rescaled to match.
+- **High Priest** keeps 2× chant and gains ×1.5 follower output, so the subscription
+  matters in the idle half of the game too.
+
+### Characters (reviewed, kept)
+
+The roster stands: four playable patrons (Cthulhu, Dagon, Hastur, Shub-Niggurath — all
+Lovecraft's own canon, public domain) plus the two framing forces (Azathoth → the Roil,
+Nyarlathotep → the Tempter). The cast needed mechanical teeth, not replacement; the
+asymmetry above gives each a reason to be chosen.
 
 ---
 

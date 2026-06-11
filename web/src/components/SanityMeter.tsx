@@ -3,6 +3,8 @@ import { useState } from 'react'
 interface SanityMeterProps {
   sanity: number
   hallucinating: boolean
+  veil: number              // the Veil multiplier on all devotion gain
+  titheLabel: string        // human cost of the Rite of Lucidity, e.g. "1.2k devotion"
   onLucidity: () => void
   onCourt: () => void
 }
@@ -24,7 +26,7 @@ function meterColor(sanity: number): string {
   return 'var(--crimson)'
 }
 
-export default function SanityMeter({ sanity, hallucinating, onLucidity, onCourt }: SanityMeterProps) {
+export default function SanityMeter({ sanity, hallucinating, veil, titheLabel, onLucidity, onCourt }: SanityMeterProps) {
   const [open, setOpen] = useState(true)
   const pct = Math.max(0, Math.min(100, sanity))
   const lit = Math.round((pct / 100) * TICKS)
@@ -68,10 +70,17 @@ export default function SanityMeter({ sanity, hallucinating, onLucidity, onCourt
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 8 }}>
+            <span style={{ color: 'var(--text-dim)' }}>the Veil pays</span>
+            <span className="mono" style={{ color: veil > 1.6 ? 'var(--crimson)' : veil > 1.15 ? 'var(--gold)' : 'var(--text)' }}>
+              ×{veil.toFixed(2)} devotion
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button onClick={onLucidity} className="rite-btn" style={{ flex: 1, '--rb': 'var(--teal)' } as React.CSSProperties}>
               Rite of Lucidity
-              <span className="rite-btn__hint">+sanity</span>
+              <span className="rite-btn__hint">tithe {titheLabel}</span>
             </button>
             <button onClick={onCourt} className="rite-btn" style={{ flex: 1, '--rb': '#9a5fe0' } as React.CSSProperties}>
               Court the Tempter
@@ -80,8 +89,8 @@ export default function SanityMeter({ sanity, hallucinating, onLucidity, onCourt
           </div>
 
           <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8, lineHeight: 1.4 }}>
-            Forbidden power costs your mind. Low sanity unlocks the strongest rites — and lets
-            things slip in that were never there.
+            Madness pays: all devotion gain multiplies as the mind frays — but below 40 the flock
+            bleeds, followers defect, and at the brink your patron's own eye turns on you.
           </div>
         </>
       )}

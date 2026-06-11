@@ -19,14 +19,24 @@ mock later behind the same `GameClient` seam (`web/src/client/`).
 What's in it:
 - **Reskin** of the prototype: devotion, chant, rite, cell, patrons, tiers (Witness / Initiate /
   High Priest), the Pact.
+- **The Liturgy** (v2 — see spec §17 for the full re-evaluation) — devotion is a *currency*:
+  buy **followers** (devotion per second, exponential costs) and **litanies** (each doubles the
+  chant). The growth engine the clicker genre demands; followers persist when the world reseeds,
+  so each cycle is a light prestige. Patrons are now real playstyles, not flavor: Cthulhu (idle:
+  followers ×1.5, chant ×0.75), Dagon (expansion: spread 60% further at half cost), Hastur (risk:
+  flips the committed, madness pays double, mind mends at half pace), Shub-Niggurath (rush:
+  chant ×1.5, followers ×1.2, costs climb faster).
 - **Living world** — ~170 real cities seeded as cult cells; bots chant, rites streak, and
   **the Roil** (Azathoth's blind churn) falls at random. Cells raise **wards** that lower
   their odds of being struck and blunt the blow — but never to zero, and wards erode unless
   tended. State persists in `localStorage`.
 - **Sigil input** — rites are invoked by *tracing a sigil* (a `$P` point-cloud recogniser);
   tier sets stroke complexity. A faltered sigil costs nothing.
-- **Sanity / Power** — a delve/recover gamble: accept power to lose sanity and unlock stronger
-  rites; low sanity brings hallucinated strikes. (Prototype balance — not yet tuned.)
+- **Sanity / the Veil** — a genuine delve/recover gamble: *all* devotion gain multiplies as the
+  mind frays (×2.5 at zero sanity; ×4 for Hastur), but below 40 the flock bleeds, below 25
+  followers defect, and at the brink your patron's lethal attention falls. Hallucinated strikes
+  blur what's real. Clawing back is never free: the Rite of Lucidity tithes 8% of your cell's
+  devotion. Rites themselves harvest souls — 25% of the damage feeds your own cell.
 - **Bargains** — Nyarlathotep, the Tempter, offers pacts (more often as your mind frays). The
   grant and the sanity cost are shown; the **catch is hidden** and springs probabilistically
   later — a strike, a defection, a false calm. A genuine gamble, not a known trade. Call him
