@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { game } from '../client'
+import { hapticTap, hapticReject, playChant, playReject } from '../feedback'
 import type { Cultist, Tier } from '../types'
 
 const RATE_LIMIT = 100
@@ -38,10 +39,19 @@ export function useChantHandler(
     chantTimestamps.current = chantTimestamps.current.filter(t => now - t < RATE_WINDOW)
     if (chantTimestamps.current.length >= RATE_LIMIT) {
       setRateLimited(true)
+      hapticReject()
+      playReject()
       clearTimeout(rateLimitTimer.current)
       rateLimitTimer.current = setTimeout(() => setRateLimited(false), 2000)
       return
     }
+
+    // Intensity climbs with the recent chanting cadence so a fast streak feels
+    // like it's building toward something.
+    const recent = chantTimestamps.current.filter(t => now - t < 2500).length
+    hapticTap()
+    playChant(Math.min(1, recent / 12))
+
     chantTimestamps.current.push(now)
 
     setPendingChants(prev => prev + multiplier)

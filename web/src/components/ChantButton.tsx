@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { hapticConfirm, playConfirm } from '../feedback'
 import type { Tier } from '../types'
 
 interface Particle {
@@ -23,6 +24,8 @@ export default function ChantButton({ onChant, personalChants, cellName, rateLim
 
   const handleChant = useCallback(() => {
     if (tier === 'witness') {
+      hapticConfirm()
+      playConfirm()
       onChant() // triggers the joining flow
       return
     }
@@ -81,16 +84,18 @@ export default function ChantButton({ onChant, personalChants, cellName, rateLim
 
         <button
           onClick={handleChant}
+          onPointerDown={() => tier !== 'witness' && setPressing(true)}
+          aria-label={tier === 'witness' ? 'Join the cell' : 'Chant'}
           className="chant-orb"
           style={{
-            width: 120, height: 120, borderRadius: '50%',
+            width: 132, height: 132, borderRadius: '50%',
             background: tier === 'witness'
               ? 'radial-gradient(circle at 36% 32%, #5fe9d2, #2bbfa8 45%, #0a3a35 100%)'
               : 'radial-gradient(circle at 36% 32%, #6ff0da, #2bbfa8 42%, #093b34 100%)',
             border: '1px solid rgba(70, 230, 205, 0.5)', cursor: 'pointer',
             boxShadow: '0 0 44px rgba(43, 191, 168, 0.5), 0 0 12px rgba(70,230,205,0.7), inset 0 -6px 14px rgba(0,0,0,0.45), inset 0 4px 10px rgba(255,255,255,0.25)',
-            transform: pressing ? 'scale(0.9)' : 'scale(1)',
-            transition: 'transform 0.1s ease',
+            transform: pressing ? 'scale(0.88)' : 'scale(1)',
+            transition: 'transform 0.13s cubic-bezier(0.34, 1.56, 0.64, 1)',
             touchAction: 'manipulation',
             WebkitTapHighlightColor: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
